@@ -48,7 +48,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)../libOTe;$(ProjectDir)../libOTe/cryptoTools/;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\boost\;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\;$(ProjectDir)../libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/miracl</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)../libOTe;$(ProjectDir)../libOTe/cryptoTools/;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\boost\;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\;$(ProjectDir)../libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/miracl;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\NTL\;C:/libs/NTL;C:/libs/NTL/include;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\NTL\include;$(SolutionDir)/libPSI;$(SolutionDir)/libPSI/</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>SOLUTION_DIR=R"**($(SolutionDir))**";_WIN32_WINNT=0x0501;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
@@ -79,7 +79,7 @@
     <ClCompile Include="BaseOT_Tests.cpp" />
     <ClCompile Include="Common.cpp" />
     <ClCompile Include="NcoOT_Tests.cpp" />
-    <ClCompile Include="nOPRF_Tests.cpp" />
+    <ClCompile Include="PSI_Tests.cpp" />
     <ClCompile Include="OTOracleReceiver.cpp" />
     <ClCompile Include="OTOracleSender.cpp" />
     <ClCompile Include="OT_Tests.cpp" />
@@ -90,7 +90,7 @@
     <ClInclude Include="BaseOT_Tests.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="NcoOT_Tests.h" />
-    <ClInclude Include="nOPRF_Tests.h" />
+    <ClInclude Include="PSI_Tests.h" />
     <ClInclude Include="OTOracleReceiver.h" />
     <ClInclude Include="OTOracleSender.h" />
     <ClInclude Include="OT_Tests.h" />

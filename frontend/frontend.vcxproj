@@ -49,7 +49,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)/libOTe;$(SolutionDir)/libOTe/cryptoTools/;$(SolutionDir)/libOTe/cryptoTools/thirdparty\win\boost\;$(SolutionDir)/libOTe/cryptoTools/thirdparty\win\;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/NTL/include;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/NTL/include;C:/libs/miracl</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)/libOTe;$(SolutionDir)/libOTe/cryptoTools/;$(SolutionDir)/libOTe/cryptoTools/thirdparty\win\boost\;$(SolutionDir)/libOTe/cryptoTools/thirdparty\win\;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/NTL/include;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/NTL/include;C:/libs/miracl;$(SolutionDir)/libPSI;C:/libs/NTL</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>SOLUTION_DIR=R"**($(SolutionDir))**";_WIN32_WINNT=0x0501 ;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
@@ -57,7 +57,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories);$(ProjectDir)..\cryptoTools\thirdparty\win\boost\stage\lib;C:/libs/boost\stage\lib;$(OutDir);$(ProjectDir)..\cryptoTools/thirdparty\win\;C:/libs/</AdditionalLibraryDirectories>
-      <AdditionalDependencies>cryptoTools.lib;libOTe.lib;Miracl\x64\$(Configuration)\miracl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cryptoTools.lib;libOTe.lib;Miracl\x64\$(Configuration)\miracl.lib;libPSI.lib;NTL\x64\Debug\NTL.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

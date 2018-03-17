@@ -1,11 +1,38 @@
-#project(frontend)
+
+#project(fronend)
 
 
-file(GLOB_RECURSE SRCS *.cpp)
+ 
 
-include_directories(${CMAKE_SOURCE_DIR})
+#############################################
+#               Build fronend.exe           #
+#############################################
+
+file(GLOB_RECURSE SRC_FRONTEND ${CMAKE_SOURCE_DIR}/frontend/*.cpp)
+include_directories(${CMAKE_SOURCE_DIR}/frontend/)
+
+add_executable(frontend.exe ${SRC_FRONTEND})
 
 
-add_executable(frontend  ${SRCS})
+#############################################
+#            Link our libraries             #
+#############################################
 
-target_link_libraries(frontend libOTe cryptoTools)
+
+
+#############################################
+#                 Link libOTe               #
+#############################################
+
+
+find_library(
+    libOTe_Tests_LIB
+    NAMES libOTe_Tests
+    HINTS "${libOTe_Dirs}/lib/")
+
+find_library(
+    cryptoTools_Tests_LIB
+    NAMES tests_cryptoTools
+    HINTS "${libOTe_Dirs}/lib/")
+
+target_link_libraries(frontend.exe libPSI)

@@ -3,6 +3,9 @@
 //using namespace std;
 #include "tests_cryptoTools/UnitTests.h"
 #include "libOTe_Tests/UnitTests.h"
+#include <cryptoTools/gsl/span>
+
+#include <cryptoTools/Common/Matrix.h>
 
 #include <cryptoTools/Common/Defines.h>
 using namespace osuCrypto;
@@ -13,12 +16,12 @@ using namespace osuCrypto;
 #include "libOTe/TwoChooseOne/KosDotExtSender.h"
 
 #include <cryptoTools/Network/Channel.h>
-#include <cryptoTools/Network/Session.h>
+#include <cryptoTools/Network/Endpoint.h>
 #include <cryptoTools/Network/IOService.h>
 #include <numeric>
 #include <cryptoTools/Common/Timer.h>
 #include <cryptoTools/Common/Log.h>
-int miraclTestMain();
+
 
 #include "libOTe/Tools/LinearCode.h"
 #include "libOTe/Tools/bch511.h"
@@ -37,10 +40,39 @@ int miraclTestMain();
 
 #include "CLP.h"
 #include "main.h"
-#include <cryptoTools/gsl/span>
 
-#include <cryptoTools/Common/Matrix.h>
+#include "libOTe/TwoChooseOne/OTExtInterface.h"
 
+#include "libOTe/Tools/Tools.h"
+#include "libOTe/Tools/LinearCode.h"
+#include <cryptoTools/Network/Channel.h>
+#include <cryptoTools/Network/Endpoint.h>
+#include <cryptoTools/Network/IOService.h>
+#include <cryptoTools/Common/Log.h>
+
+#include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
+#include "libOTe/TwoChooseOne/IknpOtExtSender.h"
+
+#include "libOTe/TwoChooseOne/KosOtExtReceiver.h"
+#include "libOTe/TwoChooseOne/KosOtExtSender.h"
+
+#include "libOTe/TwoChooseOne/LzKosOtExtReceiver.h"
+#include "libOTe/TwoChooseOne/LzKosOtExtSender.h"
+
+#include "libOTe/TwoChooseOne/KosDotExtReceiver.h"
+#include "libOTe/TwoChooseOne/KosDotExtSender.h"
+
+#include "libOTe/NChooseOne/Kkrt/KkrtNcoOtReceiver.h"
+#include "libOTe/NChooseOne/Kkrt/KkrtNcoOtSender.h"
+#include "Poly/polyNTL.h"
+#include "PsiDefines.h"
+
+#include "PRTY/PrtySender.h"
+#include "PRTY/PrtyReceiver.h"
+#include "Tools/SimpleIndex.h"
+
+#include <thread>
+#include <vector>
 
 void seft_balance1()
 {
@@ -75,7 +107,7 @@ void seft_balance1()
 	{
 		block temp = hasher.ecbEncBlock(mBalls[i]);
 
-		std::cout << temp << "\n";
+		std::cout << temp <<"\n";
 		block left = temp >> 64;
 		std::cout << left << "\n";
 
@@ -144,7 +176,7 @@ void seft_balance1()
 					heavyBins.emplace_back(b2);
 					noHeavyBins.erase(noHeavyBins.begin() + i2); //remove that item from b1
 				}
-
+				
 				if (cnt[b1] < bound)
 				{
 					noHeavyBins.emplace_back(b1);
@@ -194,7 +226,7 @@ void seft_balance1()
 	{
 		if (cnt[i] > bound)
 		{
-
+			
 			std::cout << "error----------" << i << "\t" << bound << "\t" << cnt[i] << "\n";
 			break;
 		}
@@ -227,7 +259,7 @@ struct Bin
 
 void seft_balance()
 {
-	u64 numBalls = 1 << 8, numBins = 1 << 2;
+	u64 numBalls = 1 << 20,  numBins = 1 << 10;
 
 	PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
 
@@ -252,13 +284,13 @@ void seft_balance()
 
 	for (u64 i = 0; i < numBalls; ++i)
 	{
-		/*block temp = hasher.ecbEncBlock(mBalls[i]);
+		block temp = hasher.ecbEncBlock(mBalls[i]);
+		
+		u64 b1 = _mm_extract_epi64(temp, 0) % numBins;
+		u64 b2 = _mm_extract_epi64(temp, 1) % numBins;
 
-		u64 b1 = *(u64*)&(temp) % numBins;
-		u64 b2 = *((u64*)&temp+sizeof(64)) % numBins;
-		*/
 
-		u64 b1 = rand() % numBins; u64 b2 = rand() % numBins;
+		//u64 b1 = rand() % numBins; u64 b2 = rand() % numBins;
 
 		if (cnt[b1] > cnt[b2])//choosing the lightest of 2 bin
 		{
@@ -276,7 +308,7 @@ void seft_balance()
 		{
 			mBins[b1].values.emplace(std::make_pair(b2, std::vector<block>{ mBalls[i] }));
 		}
-
+	
 		cnt[b1]++;
 
 	}
@@ -297,9 +329,9 @@ void seft_balance()
 	std::vector<u64> heavyBins;
 	for (u64 i = 0; i < numBins; i++)
 	{
-		if (cnt[i]> bound)
+		if (cnt[i]>= bound)
 			heavyBins.emplace_back(i);
-
+			
 	}
 
 #if 1
@@ -319,20 +351,21 @@ void seft_balance()
 		u64 b1 = heavyBins[i1];
 		//std::cout << mBins[b1].lightBins.size() << "\t";
 
-		if (mBins[b1].lightBins.size() == 0)
+		if (mBins[b1].lightBins.size() == 0) //just in case...
 			continue;
-
+		
 		u64 i2 = rand() % mBins[b1].lightBins.size();
 		u64 b2 = mBins[b1].lightBins[i2]; //noHeavyBins
-										  //std::cout << cnt[b2] << "\t"<< cnt[b1]<< "\t";
+		//std::cout << cnt[b2] << "\t"<< cnt[b1]<< "\t";
 
 
-		if (cnt[b2] < cnt[b1]) {
+		if (cnt[b2] < cnt[b1] )
+		{
 			auto curSubBin = mBins[b1].values.find(b2);
 
 			u64 rB = rand() % 2;
 
-			if (rB == 1 || cnt[b2] + 1 != cnt[b1])
+			if (rB ==1 || cnt[b2]+1 != cnt[b1])
 			{
 				//std::cout << rB<< "\n";
 
@@ -356,12 +389,12 @@ void seft_balance()
 				cnt[b2]++;
 
 				//update heavyBins
-				if (cnt[b2] > bound && std::find(heavyBins.begin(), heavyBins.end(), b2) == heavyBins.end())
+				if (cnt[b2] >= bound && std::find(heavyBins.begin(), heavyBins.end(), b2) == heavyBins.end())
 					heavyBins.emplace_back(b2); //add if >bound
 
 
-												//remove x from b1
-												//std::cout << curSubBin->second.size() << "\t";
+				//remove x from b1
+				//std::cout << curSubBin->second.size() << "\t";
 				curSubBin->second.erase(curSubBin->second.begin() + idxItem); //remove that item from b1
 				cnt[b1]--;
 				//std::cout << curSubBin->second.size() << "\n";
@@ -375,7 +408,7 @@ void seft_balance()
 				}
 				//
 				//update lightBins
-				if (cnt[b2] > bound)
+				if (cnt[b2] >= bound)
 				{
 					mBins[b1].lightBins.erase(mBins[b1].lightBins.begin() + i2);
 				}
@@ -385,7 +418,7 @@ void seft_balance()
 				iter++;
 			}
 
-
+			
 		}
 		isNotDone = false;
 
@@ -423,237 +456,216 @@ void seft_balance()
 }
 #endif 
 
-void kkrt_test(int i)
+
+void Sender(u64 setSize, span<block> inputs, u64 numThreads = 1)
 {
-    setThreadName("Sender");
+	u64 psiSecParam = 40;
 
-    PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
 
-    u64 step = 1024;
-    u64 numOTs = 1 << 24;
-    u64 numThreads = 1;
+	// set up networking
+	std::string name = "n";
+	IOService ios;
+	Endpoint ep1(ios, "localhost", 1212, EpMode::Server, name);
 
-    u64 otsPer = numOTs / numThreads;
+	std::vector<Channel> sendChls(numThreads);
+	for (u64 i = 0; i < numThreads; ++i)
+		sendChls[i] = ep1.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
 
-    auto rr = i ? EpMode::Server : EpMode::Client;
-    std::string name = "n";
-    IOService ios(0);
-    Session  ep0(ios, "localhost", 1212, rr, name);
-    std::vector<Channel> chls(numThreads);
+	PrtySender sender;
 
-    for (u64 k = 0; k < numThreads; ++k)
-        chls[k] = ep0.addChannel(name + ToString(k), name + ToString(k));
+	sender.init(40, prng0, inputs, sendChls);
 
+	/*std::cout << sender.mBaseOTSend[0][0] << "\t";
+	std::cout << sender.mBaseOTSend[0][1] << "\n";
+	std::cout << sender.mBaseOTRecv[0] << "\n";*/
 
-
-    u64 baseCount = 4 * 128;
-
-    std::vector<block> baseRecv(baseCount);
-    std::vector<std::array<block, 2>> baseSend(baseCount);
-    BitVector baseChoice(baseCount);
-    baseChoice.randomize(prng0);
-
-    prng0.get((u8*)baseSend.data()->data(), sizeof(block) * 2 * baseSend.size());
-    for (u64 i = 0; i < baseCount; ++i)
-    {
-        baseRecv[i] = baseSend[i][baseChoice[i]];
-    }
-
-    block choice = prng0.get<block>();// ((u8*)choice.data(), ncoinputBlkSize * sizeof(block));
-
-    std::vector<std::thread> thds(numThreads);
-
-    if (i == 0)
-    {
-
-        for (u64 k = 0; k < numThreads; ++k)
-        {
-            thds[k] = std::thread(
-                [&, k]()
-            {
-                KkrtNcoOtReceiver r;
-				r.configure(false, 40, 128);
-                r.setBaseOts(baseSend);
-                auto& chl = chls[k];
-
-                r.init(otsPer, prng0, chl);
-                block encoding1;
-                for (u64 i = 0; i < otsPer; i += step)
-                {
-                    for (u64 j = 0; j < step; ++j)
-                    {
-                        r.encode(i + j, &choice, &encoding1);
-                    }
-
-                    r.sendCorrection(chl, step);
-                }
-                r.check(chl, ZeroBlock);
-
-                chl.close();
-            });
-        }
-        for (u64 k = 0; k < numThreads; ++k)
-            thds[k].join();
-    }
-    else
-    {
-        Timer time;
-        time.setTimePoint("start");
-        block encoding2;
-
-        for (u64 k = 0; k < numThreads; ++k)
-        {
-            thds[k] = std::thread(
-                [&, k]()
-            {
-                KkrtNcoOtSender s;
-				s.configure(false, 40, 128);
-                s.setBaseOts(baseRecv, baseChoice);
-                auto& chl = chls[k];
-
-                s.init(otsPer, prng0, chl);
-                for (u64 i = 0; i < otsPer; i += step)
-                {
-
-                    s.recvCorrection(chl, step);
-
-                    for (u64 j = 0; j < step; ++j)
-                    {
-                        s.encode(i + j, &choice, &encoding2);
-                    }
-                }
-                s.check(chl, ZeroBlock);
-                chl.close();
-            });
-        }
+	sender.output(inputs, sendChls);
 
 
-        for (u64 k = 0; k < numThreads; ++k)
-            thds[k].join();
+	for (u64 i = 0; i < numThreads; ++i)
+		sendChls[i].close();
 
-        time.setTimePoint("finish");
-        std::cout << time << std::endl;
-    }
+	ep1.stop();	ios.stop();
 
-
-    //for (u64 k = 0; k < numThreads; ++k)
-        //chls[k]->close();
-
-    ep0.stop();
-    ios.stop();
 }
 
-
-
-
-
-void iknp_test(int i)
+void Receiver(u64 setSize, span<block> inputs,u64 numThreads=1)
 {
-    setThreadName("Sender");
+	u64 psiSecParam = 40;
 
-    PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
 
-    u64 numOTs = 1 << 24;
+	// set up networking
+	std::string name = "n";
+	IOService ios;
+	Endpoint ep0(ios, "localhost", 1212, EpMode::Client, name);
 
-    auto rr = i ? EpMode::Server : EpMode::Client;
+	std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
+	for (u64 i = 0; i < numThreads; ++i)
+		recvChls[i] = ep0.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
 
-    // get up the networking
-    std::string name = "n";
-    IOService ios(0);
-    Session  ep0(ios, "localhost", 1212, rr, name);
-    Channel chl = ep0.addChannel(name, name);
+	PrtyReceiver recv;
+	gTimer.reset();
+	gTimer.setTimePoint("start");
+	recv.init(40, prng1, inputs, recvChls);
+	gTimer.setTimePoint("offline");
 
+		/*std::cout << recv.mBaseOTRecv[0] << "\n";
+		std::cout << recv.mBaseOTSend[0][0] << "\t";
+		std::cout << recv.mBaseOTSend[0][1] << "\n";*/
 
-    // cheat and compute the base OT in the clear.
-    u64 baseCount = 128;
-    std::vector<block> baseRecv(baseCount);
-    std::vector<std::array<block, 2>> baseSend(baseCount);
-    BitVector baseChoice(baseCount);
-    baseChoice.randomize(prng0);
-
-    prng0.get((u8*)baseSend.data()->data(), sizeof(block) * 2 * baseSend.size());
-    for (u64 i = 0; i < baseCount; ++i)
-    {
-        baseRecv[i] = baseSend[i][baseChoice[i]];
-    }
-
-
+	recv.output(inputs, recvChls);
+	gTimer.setTimePoint("finish");
+	std::cout << gTimer << std::endl;
 
 
-    if (i)
-    {
-        BitVector choice(numOTs);
-        std::vector<block> msgs(numOTs);
-        choice.randomize(prng0);
-        IknpOtExtReceiver r;
-        r.setBaseOts(baseSend);
+	for (u64 i = 0; i < numThreads; ++i)
+		recvChls[i].close();
 
-        r.receive(choice, msgs, prng0, chl);
-    }
-    else
-    {
-        std::vector<std::array<block, 2>> msgs(numOTs);
+	ep0.stop(); ios.stop();
 
-        Timer time;
-        time.setTimePoint("start");
-        IknpOtExtSender s;
-        s.setBaseOts(baseRecv, baseChoice);
-
-        s.send(msgs, prng0, chl);
-
-        time.setTimePoint("finish");
-        std::cout << time << std::endl;
-
-    }
-
-
-    chl.close();
-
-    ep0.stop();
-    ios.stop();
 }
 
+void PMT_Test_Impl()
+{
+	u64 setSize = 1 << 7, psiSecParam = 40, numThreads(1);
 
-double maxprob1(u64 balls, u64 bins, u64 k)
-{
-	return std::log(bins * std::pow(balls * exp(1) / (bins * k), k)) / std::log(2);
-}
-u64 findMaxBinSize(u64 n, u64 numBins, u64 numHash = 1)
-{
-	u64 balls = n;
-	u64 maxBin = n;
-	while (true)
+	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
+
+
+	std::vector<block> sendSet(setSize), recvSet(setSize);
+	for (u64 i = 0; i < setSize; ++i)
 	{
-		// finds the min number of bins needed to get max occ. to be maxBin
-		
-		if (-maxprob1(balls, numBins, maxBin) < 40)
-		{
-			// maxBins is too small, skip it.
-			continue;
-			maxBin++;
-		}
-		else
-			return maxBin;
+		sendSet[i] = prng0.get<block>();
+		recvSet[i] = prng0.get<block>();
 	}
+	sendSet[0] = recvSet[0];
+	sendSet[2] = recvSet[2];
+	std::cout << "intersection: " << sendSet[0] << "\n";
+	std::cout << "intersection: " << sendSet[2] << "\n";
+
+
+	// set up networking
+	std::string name = "n";
+	IOService ios;
+	Endpoint ep0(ios, "localhost", 1212, EpMode::Client, name);
+	Endpoint ep1(ios, "localhost", 1212, EpMode::Server, name);
+
+	std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
+	for (u64 i = 0; i < numThreads; ++i)
+	{
+		sendChls[i] = ep1.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
+		recvChls[i] = ep0.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
+	}
+
+
+	PrtySender sender;
+	PrtyReceiver recv;
+	auto thrd = std::thread([&]() {
+		recv.init(40, prng1, recvSet, recvChls);
+
+		std::cout << recv.mBaseOTRecv[0] << "\n";
+
+		std::cout << recv.mBaseOTSend[0][0] << "\t";
+		std::cout << recv.mBaseOTSend[0][1] << "\n";
+
+		recv.output(recvSet, recvChls);
+
+	});
+
+	sender.init(40, prng0, sendSet, sendChls);
+
+
+	std::cout << sender.mBaseOTSend[0][0] << "\t";
+	std::cout << sender.mBaseOTSend[0][1] << "\n";
+	std::cout << sender.mBaseOTRecv[0] << "\n";
+
+	sender.output(sendSet, sendChls);
+	thrd.join();
+
+
+
+
+	for (u64 i = 0; i < numThreads; ++i)
+	{
+		sendChls[i].close(); recvChls[i].close();
+	}
+
+	ep0.stop(); ep1.stop();	ios.stop();
+
 }
 
 
+
+
+void usage(const char* argv0)
+{
+	std::cout << "Error! Please use:" << std::endl;
+	std::cout << "\t 1. For unit test: " << argv0 << " -t" << std::endl;
+	std::cout << "\t 2. For simulation (2 terminal): " << std::endl;;
+	std::cout << "\t\t Sender terminal: " << argv0 << " -r 0" << std::endl;
+	std::cout << "\t\t Receiver terminal: " << argv0 << " -r 1" << std::endl;
+}
 
 int main(int argc, char** argv)
 {
 
-	std::vector<u64> n = { 12,14,16,20,24 };
+	seft_balance();
+	return 0;
 
-	for (u64 i = 0; i < n.size(); i++)
+	u64 setSize = 1 << 20;
+	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
+	std::vector<block> sendSet(setSize), recvSet(setSize);
+	for (u64 i = 0; i < setSize; ++i)
 	{
-		u64 p = 1 << n[i];
-		for (u64 numBins = 128; numBins < 1024; numBins += 128)
-		{
-			u64 maxBin = findMaxBinSize(p, numBins);
-			std::cout << n[i] << " | " << numBins << " | " << maxBin << std::endl;
-		}
-		std::cout << std::endl;
+		sendSet[i] = prng0.get<block>();
+		recvSet[i] = prng0.get<block>();
+	}
+	sendSet[0] = recvSet[0];
+	sendSet[2] = recvSet[2];
+	std::cout << "intersection: " << sendSet[0] << "\n";
+	std::cout << "intersection: " << sendSet[2] << "\n";
+	
+
+#if 0
+	std::thread thrd = std::thread([&]() {
+		Sender(setSize, sendSet);
+	});
+
+	Receiver(setSize, recvSet);
+
+	thrd.join();
+	return 0;
+#endif
+
+	if (argc == 2 && argv[1][0] == '-' && argv[1][1] == 't') {
+		
+		std::thread thrd = std::thread([&]() {
+			Sender(setSize,sendSet);
+		});
+
+		Receiver(setSize, recvSet);
+
+		thrd.join();
+
+	}
+	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
+		Sender(setSize, sendSet);
+	}
+	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
+		Receiver(setSize, sendSet);
+	}
+	else {
+		usage(argv[0]);
 	}
 
-    return 0;
+
+	
+  
+	return 0;
 }

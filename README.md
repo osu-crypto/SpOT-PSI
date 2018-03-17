@@ -1,18 +1,10 @@
-# install libraries for libOTe
+### Windows
 
-git submodule update --init --recursive
+First clone and build libOTe which should share the same parent directory. Then clone this library and open the solution in Visaul Studio.
 
-cd libOTe/cryptoTools/thirdparty/linux
-
-bash all.get
+### Linux
 
 
-# build this project
+libOTe, should share the same parent directory.
 
-cmake  -G "Unix Makefiles"
-
-make
-
-# execute
-
-./bin/frontend
+ntl should build in `prtyPSI/thirdparty/linux/ntl`
