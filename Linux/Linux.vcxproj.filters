@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source files">
+      <UniqueIdentifier>{c4a4e7ed-a04f-444d-82a9-46d14372da48}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header files">
+      <UniqueIdentifier>{200883ef-e7e4-4640-8df4-2467dcf62fd4}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource files">
+      <UniqueIdentifier>{5ed4d44d-e9f7-420e-80d1-020656ddc78b}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Party.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="PartyR.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="PartyS.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Poly.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="tests_zp.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="utils_zp.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="zp.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClInclude Include="Defines.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Party.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="PartyR.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="PartyS.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Poly.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="tests_zp.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils_zp.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="zp.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
