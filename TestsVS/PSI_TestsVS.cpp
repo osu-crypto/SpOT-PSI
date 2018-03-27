@@ -24,8 +24,19 @@ namespace tests_libOTe
 			InitDebugPrinting();
 			myTest();
 		}
-		
 
+		TEST_METHOD(NTL_Poly_TestVS)
+		{
+			InitDebugPrinting();
+			NTL_Poly_Test_Impl();
+		}
+
+		TEST_METHOD(FFT_Poly_TestVS)
+		{
+			InitDebugPrinting();
+			FFT_Poly_Test_Impl();
+		}
+		
 	};
 }
 #endif

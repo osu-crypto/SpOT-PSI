@@ -25,6 +25,7 @@
 #include "libOTe/NChooseOne/Kkrt/KkrtNcoOtReceiver.h"
 #include "libOTe/NChooseOne/Kkrt/KkrtNcoOtSender.h"
 #include "Poly/polyNTL.h"
+#include "Poly/polyFFT.h"
 #include "PsiDefines.h"
 
 #include "PRTY/PrtySender.h"
@@ -168,4 +169,109 @@ namespace tests_libOTe
 
 
 	}
+
+	void NTL_Poly_Test_Impl() {
+		std::mutex mtx;
+
+		auto routines = [&](u64 t)
+		{
+
+			polyNTL poly;
+			poly.NtlPolyInit(8);
+			PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+
+			std::vector<block> setX(10);
+			std::vector<block> setY(10, prng0.get<block>());
+
+			block a = prng0.get<block>();
+			for (u64 i = 0; i < 4; ++i)
+			{
+				setX[i] = prng0.get<block>();
+			}
+
+			block b = prng0.get<block>();
+			for (u64 i = 5; i < setX.size(); ++i)
+			{
+				setX[i] = prng0.get<block>();
+			}
+
+			setY[9] = prng0.get<block>();
+
+
+
+			NTL::vec_GF2E x; NTL::vec_GF2E y;
+			NTL::GF2E e;
+
+			for (u64 i = 0; i < setX.size(); ++i)
+			{
+				poly.GF2EFromBlock(e, setX[i], poly.mNumBytes);
+				//NTL::random(e);
+				x.append(e);
+				//NTL::random(e);
+				poly.GF2EFromBlock(e, setY[i], poly.mNumBytes);
+
+				//polyNTL::GF2EFromBlock(e, setY[i], mNumBytes);
+				y.append(e);
+			}
+
+
+			NTL::GF2EX polynomial = NTL::interpolate(x, y);
+
+
+
+			std::vector<block> coeffs;
+			poly.getBlkCoefficients(11, setX, setY, coeffs);
+
+			block y1 = ZeroBlock;
+			poly.evalPolynomial(coeffs, setX[0], y1);
+
+			std::lock_guard<std::mutex> lock(mtx);
+			std::cout << setY[0] << "\t" << y1 << std::endl;
+
+		};
+
+		std::vector<std::thread> thrds(1);
+		for (u64 i = 0; i < thrds.size(); ++i)
+		{
+			thrds[i] = std::thread([=] {
+				routines(i);
+			});
+		}
+
+		for (auto& thrd : thrds)
+			thrd.join();
+	}
+
+
+	using namespace std;
+	using namespace NTL;
+
+	void FFT_Poly_Test_Impl() {
+
+		ZZ prime;
+		GenGermainPrime(prime, 128);
+
+		long degree = 480;
+
+		// init underlying prime field
+		ZZ_p::init(ZZ(prime));
+
+		// interpolation points:
+		ZZ_p* x = new ZZ_p[degree + 1];
+		ZZ_p* y = new ZZ_p[degree + 1];
+		for (unsigned int i = 0; i <= degree; i++) {
+			random(x[i]);
+			random(y[i]);
+			//        cout << "(" << x[i] << "," << y[i] << ")" << endl;
+		}
+
+		ZZ_pX P;
+
+		interpolate_zp(P, x, y, degree,1,prime);
+
+		//cout << "P: "; print_poly(P); cout << endl;
+		test_interpolation_result_zp(P, x, y, degree);
+
+	}
+
 }

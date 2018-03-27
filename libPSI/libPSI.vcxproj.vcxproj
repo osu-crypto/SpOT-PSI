@@ -15,12 +15,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Poly\polyFFT.cpp" />
     <ClCompile Include="Poly\polyNTL.cpp" />
     <ClCompile Include="PRTY\PrtyReceiver.cpp" />
     <ClCompile Include="PRTY\PrtySender.cpp" />
     <ClCompile Include="Tools\SimpleIndex.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Poly\polyFFT.h" />
     <ClInclude Include="Poly\polyNTL.h" />
     <ClInclude Include="PRTY\PrtyReceiver.h" />
     <ClInclude Include="PRTY\PrtySender.h" />

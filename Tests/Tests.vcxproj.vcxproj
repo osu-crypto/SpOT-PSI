@@ -48,7 +48,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)../libOTe;$(ProjectDir)../libOTe/cryptoTools/;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\boost\;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\;$(ProjectDir)../libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/miracl;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\NTL\;C:/libs/NTL;C:/libs/NTL/include;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\NTL\include;$(SolutionDir)/libPSI;$(SolutionDir)/libPSI/</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)../libOTe;$(ProjectDir)../libOTe/cryptoTools/;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\boost\;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\;$(ProjectDir)../libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/miracl;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\NTL\;C:/libs/NTL;C:/libs/NTL/include;$(ProjectDir)../libOTe/cryptoTools/thirdparty\win\NTL\include;$(SolutionDir)/libPSI;$(SolutionDir)/libPSI/;$(SolutionDir)/libPoly/</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>SOLUTION_DIR=R"**($(SolutionDir))**";_WIN32_WINNT=0x0501;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
