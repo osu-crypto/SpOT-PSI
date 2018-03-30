@@ -14,6 +14,9 @@ namespace osuCrypto
 
 
 
+	
+
+
 
 	void print_poly(ZZ_pX& P)
 	{
@@ -35,91 +38,34 @@ namespace osuCrypto
 		//    cout << endl << "random poly:" << endl << P << endl;
 	}
 
-	void build_tree_main(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size) {
 
-		ZZ_p negated;
-		int i;// = tree_size-1;
-		unsigned int point_index;
-
-
-		steady_clock::time_point begin1 = steady_clock::now();
-
-
-		for (i = tree_size - 1; i >= tree_size / 2; i--) {
-			point_index = i - (tree_size - 1) / 2;
-			NTL::negate(negated, points[point_index]);
-			SetCoeff(tree[i], 0, negated);
-			SetCoeff(tree[i], 1, 1);
-		}
-		steady_clock::time_point end1 = steady_clock::now();
-		//cout << "Building tree - first part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
-
-		for (; i >= 0; i--) {
-			tree[i] = tree[LEFT(i)] * tree[RIGHT(i)];
-		}
-
-
-	}
 
 	void build_tree(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size, int numThreads, ZZ &prime) {
 
 		ZZ_p negated;
-		int i;// = tree_size-1;
 		unsigned int point_index;
 
-
-		steady_clock::time_point begin1 = steady_clock::now();
-
-		//cout<<"leaves";
-		for (i = tree_size - 1; i >= tree_size / 2; i--) {
+		//build all leaves whose index starts at treesize/2 => tree[i]= x-xi	
+		for (u32 i = tree_size / 2; i< tree_size; i++) {
 			point_index = i - (tree_size - 1) / 2;
-			NTL::negate(negated, points[point_index]);
+			NTL::negate(negated, points[point_index]); //get -xi
 			SetCoeff(tree[i], 0, negated);
 			SetCoeff(tree[i], 1, 1);
-
-			//cout<<"--"<<i;
 		}
-		steady_clock::time_point end1 = steady_clock::now();
-		//cout << "Building tree - first part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
-		begin1 = steady_clock::now();
 		vector<vector<int>> subs(numThreads);
 		generateSubTreeArrays(subs, tree_size / 2, numThreads - 1);
-		end1 = steady_clock::now();
-		//cout << "Building tree - generate sub trees: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
-
-		begin1 = steady_clock::now();
 		vector<thread> threads(numThreads);
 
-		//    SetNumThreads(numThreads);
-		//
-		//    NTL_EXEC_RANGE(numThreads, first, last)
-		//    for (int t=first; t<last; t++) {
-		//
-		//        buildSubTree(tree, ref(subs[t]));
-		//        //threads[t] = thread(&buildSubTree, tree, ref(subs[i]));
-		//
-		//
-		//    }
-		//
-		//    NTL_EXEC_RANGE_END
-
-
-		for (int t = 0; t < numThreads; t++) {
-
+		for (int t = 0; t < numThreads; t++) 
 			threads[t] = thread(&buildSubTree, tree, ref(subs[t]), ref(prime));
-		}
 
-		for (int t = 0; t < numThreads; t++) {
+		for (int t = 0; t < numThreads; t++) 
 			threads[t].join();
-		}
-
-		end1 = steady_clock::now();
-		//cout << "Building tree - threads part: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 
-		begin1 = steady_clock::now();
+
 		vector<thread> threadsLastPart(numThreads * 2);
 
 		for (int i = log2(numThreads) - 1; i >= 1; i--) {
@@ -136,22 +82,7 @@ namespace osuCrypto
 			}
 		}
 
-
-		end1 = steady_clock::now();
-		//cout << "inter - last part for max "<< numThreads/2<<" threads " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
-
-
-
-		//    begin1 = steady_clock::now();
-		//    for(int i=numThreads-2; i>=1; i--)
-		//        tree[i] = tree[LEFT(i)]*tree[RIGHT(i)];
-		//    end1 = steady_clock::now();
-		//    cout << "Building tree - SERIAL: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
-
-		begin1 = steady_clock::now();
 		tree[0] = tree[LEFT(0)] * tree[RIGHT(0)];
-		end1 = steady_clock::now();
-		//cout << "Building tree - last mults: " << duration_cast<milliseconds>(end1 - begin1).count() << " ms" << endl;
 
 	}
 
@@ -195,18 +126,13 @@ namespace osuCrypto
 	}
 
 	void buildSubTree(ZZ_pX* tree, vector<int> &subTree, ZZ &prime) {
-
-
-		//cout<<"Thread indices";
+		
 		ZZ_p::init(prime);
 		int index;
 		for (int i = subTree.size() - 1; i >= 0; i--) {
 			index = subTree[i];
-			//cout<<"--"<<index;
-
 			tree[index] = tree[LEFT(index)] * tree[RIGHT(index)];
 		}
-
 	}
 
 	void interSubTree(ZZ_pX* temp, ZZ_pX* M, vector<int> &subTree, ZZ &prime) {
@@ -548,9 +474,7 @@ namespace osuCrypto
 
 		//now we can apply the formula
 		ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
-//		begin[4] = system_clock::now();
 		iterative_interpolate_zp(resultP, temp, y, a, M, degree * 2 + 1, numThreads, prime);
-//		end[4] = system_clock::now();
 
 
 		//cout << "Interpolation: " << duration_cast<milliseconds>(end[4] - begin[4]).count() << " ms" << endl;
@@ -562,12 +486,8 @@ namespace osuCrypto
 		system_clock::time_point begin[4];
 		system_clock::time_point end[4];
 
-		begin[1] = system_clock::now();
-		//we first build the tree of the super modulibegin[1]= system_clock::now();
 		build_tree(M, x, degree * 2 + 1, numThreads, prime);
-		end[1] = system_clock::now();
-		//    test_tree(M[0], x, degree+1);
-
+		
 		ZZ_pX D;
 		//we construct a preconditioned global structure for the a_k for all 1<=k<=(degree+1)ZZ_pX D;
 		begin[2] = system_clock::now();

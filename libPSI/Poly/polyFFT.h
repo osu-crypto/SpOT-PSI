@@ -5,17 +5,6 @@
 #include <cryptoTools/Crypto/PRNG.h>
 #include <cryptoTools/Common/BitVector.h>
 #include <cryptoTools/Common/Timer.h>
-
-#include "NTL/GF2EX.h"
-#include "NTL/GF2XFactoring.h"
-#include <NTL/GF2E.h>
-#include "NTL/GF2EX.h"
-#include <NTL/ZZ_pE.h>
-#include <NTL/vec_ZZ_pE.h>
-#include "NTL/GF2EX.h"
-#include "NTL/ZZ_p.h"
-#include "NTL/GF2EX.h" 
-#include "NTL/GF2XFactoring.h"
 #include <chrono>
 //#include <sys/resource.h>
 #include <iostream>
@@ -33,6 +22,7 @@ using namespace chrono;
 
 namespace osuCrypto
 {
+
 
 	void print_poly(ZZ_pX& P);
 	void build_tree_main(ZZ_pX* tree, ZZ_p* points, unsigned int tree_size);

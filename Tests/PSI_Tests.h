@@ -8,5 +8,6 @@ namespace tests_libOTe
 	void myTest();
 	void seft_balance();
 	void FFT_Poly_Test_Impl();
+	void tree_impl();
 
 }

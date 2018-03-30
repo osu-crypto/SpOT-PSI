@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Poly\polyFFT.cpp" />
+    <ClCompile Include="Poly\polyFFT2.cpp" />
     <ClCompile Include="Poly\polyNTL.cpp" />
     <ClCompile Include="PRTY\PrtyReceiver.cpp" />
     <ClCompile Include="PRTY\PrtySender.cpp" />
@@ -23,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Poly\polyFFT.h" />
+    <ClInclude Include="Poly\polyFFT2.h" />
     <ClInclude Include="Poly\polyNTL.h" />
     <ClInclude Include="PRTY\PrtyReceiver.h" />
     <ClInclude Include="PRTY\PrtySender.h" />
@@ -82,12 +84,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)/..;$(ProjectDir)/../libOTe/cryptoTools/;$(ProjectDir)/../libOTe/cryptoTools/thirdparty/win/boost;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/NTL/include;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/;C:/libs/NTL/include;C:/libs/miracl;C:\Program Files %28x86%29\Visual Leak Detector\include;$(ProjectDir)/../libOTe/libOTe;$(ProjectDir)/../libOTe/</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)/..;$(ProjectDir)/../libOTe/cryptoTools/;$(ProjectDir)/../libOTe/cryptoTools/thirdparty/win/boost;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/NTL/include;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/;$(SolutionDir)/libOTe/cryptoTools/thirdparty/win/miracl;C:/libs/boost;C:/libs/NTL/include;C:/libs/miracl;C:\Program Files %28x86%29\Visual Leak Detector\include;$(ProjectDir)/../libOTe/libOTe;$(ProjectDir)/../libOTe/;C:/libs/NTL/include/</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;SOLUTION_DIR=R"**($(SolutionDir))**";_MBCS;%(PreprocessorDefinitions);_WIN32_WINNT=0x0501;</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <MinimalRebuild>false</MinimalRebuild>
+      <AdditionalOptions>/wd4146</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

@@ -600,7 +600,39 @@ void PMT_Test_Impl()
 }
 
 
+#include "Poly/polyFFT.h"
+void FFT_Poly_Test_Impl() {
 
+	ZZ prime;
+	GenGermainPrime(prime, 128);
+
+	long degree = 1<<20;
+
+	// init underlying prime field
+	ZZ_p::init(ZZ(prime));
+
+
+	// interpolation points:
+	ZZ_p* x = new ZZ_p[degree + 1];
+	ZZ_p* y = new ZZ_p[degree + 1];
+	for (unsigned int i = 0; i <= degree; i++) {
+		random(x[i]);
+		random(y[i]);
+		//        cout << "(" << x[i] << "," << y[i] << ")" << endl;
+	}
+
+	ZZ_pX P;
+
+	gTimer.reset();
+	gTimer.setTimePoint("start");
+	interpolate_zp(P, x, y, degree, 16, prime);
+	gTimer.setTimePoint("finish");
+	std::cout << gTimer << std::endl;
+
+	//cout << "P: "; print_poly(P); cout << endl;
+	test_interpolation_result_zp(P, x, y, degree);
+
+}
 
 void usage(const char* argv0)
 {
@@ -613,6 +645,11 @@ void usage(const char* argv0)
 
 int main(int argc, char** argv)
 {
+	FFT_Poly_Test_Impl();
+
+
+	return 0;
+
 
 	seft_balance();
 	return 0;

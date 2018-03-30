@@ -36,6 +36,11 @@ namespace tests_libOTe
 			InitDebugPrinting();
 			FFT_Poly_Test_Impl();
 		}
+		TEST_METHOD(Tree_Impl_TestVS)
+		{
+			InitDebugPrinting();
+			tree_impl();
+		}
 		
 	};
 }

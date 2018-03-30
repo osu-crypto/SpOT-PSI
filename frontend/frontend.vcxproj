@@ -54,6 +54,7 @@
       <PreprocessorDefinitions>SOLUTION_DIR=R"**($(SolutionDir))**";_WIN32_WINNT=0x0501 ;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/wd4146</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories);$(ProjectDir)..\cryptoTools\thirdparty\win\boost\stage\lib;C:/libs/boost\stage\lib;$(OutDir);$(ProjectDir)..\cryptoTools/thirdparty\win\;C:/libs/</AdditionalLibraryDirectories>
