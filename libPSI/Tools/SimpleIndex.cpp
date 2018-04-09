@@ -12,18 +12,24 @@ namespace osuCrypto
 {
 
 
-    void SimpleIndex::print()
+    void SimpleIndex::print(span<block> items)
     {
-		std::cout << "mMaxBinSize=" << mMaxBinSize << std::endl;
+		std::cout << "numIters=" << numIters << std::endl;
+		std::cout << "mNumDummies=" << mNumDummies << std::endl;
 		std::cout << "mNumBins=" << mNumBins << std::endl;
         for (u64 i = 0; i < mBins.size(); ++i)
         {
-            std::cout << "Bin #" << i << std::endl;
+            std::cout << "Bin #" << i <<  " contains " << mBins[i].cnt << " elements" << std::endl;
 
-            std::cout << " contains " << mBins[i].mBinRealSizes << " elements" << std::endl;
+			for (auto it = mBins[i].values.begin(); it != mBins[i].values.end(); ++it)//for each bin, list all alter light bins
+			{
+				for (u64 j = 0; j < it->second.size(); j++)
+				{
+					//std::cout << "\t" << it->second[j] << "\t" << items[it->second[j]] << std::endl;
+					std::cout << "\t" << items[it->second[j]] << std::endl;
 
-            for (u64 j = 0; j < mBins[i].items.size(); ++j)
-                std::cout << "    idx=" << mBins[i].items[j] << std::endl;
+				}
+			}
 			
             std::cout << std::endl;
         }
@@ -31,212 +37,145 @@ namespace osuCrypto
         std::cout << std::endl;
     }
 
-#if 0
-    //template<unsigned int N = 16>
-    double getBinOverflowProb(u64 numBins, u64 numBalls, u64 binSize, double epsilon = 0.0001)
+    void SimpleIndex::init( u64 numBins, u64 numDummies, u64 statSecParam)
     {
-        if (numBalls <= binSize)
-            return std::numeric_limits<double>::max();
-
-        if (numBalls > std::numeric_limits<i32>::max())
-        {
-            auto msg = ("boost::math::binomial_coefficient(...) only supports " + std::to_string(sizeof(unsigned) * 8) + " bit inputs which was exceeded." LOCATION);
-            std::cout << msg << std::endl;
-            throw std::runtime_error(msg);
-        }
-
-        //std::cout << numBalls << " " << numBins << " " << binSize << std::endl;
-        typedef boost::multiprecision::number<boost::multiprecision::backends::cpp_bin_float<16>> T;
-        T sum = 0.0;
-        T sec = 0.0;// minSec + 1;
-        T diff = 1;
-        u64 i = binSize + 1;
-
-
-        while (diff > T(epsilon) && numBalls >= i /*&& sec > minSec*/)
-        {
-            sum += numBins * boost::math::binomial_coefficient<T>(i32(numBalls), i32(i))
-                * boost::multiprecision::pow(T(1.0) / numBins, i) * boost::multiprecision::pow(1 - T(1.0) / numBins, numBalls - i);
-
-            //std::cout << "sum[" << i << "] " << sum << std::endl;
-
-            T sec2 = boost::multiprecision::log2(sum);
-            diff = boost::multiprecision::abs(sec - sec2);
-            //std::cout << diff << std::endl;
-            sec = sec2;
-
-            i++;
-        }
-
-        return std::max<double>(0, (double)-sec);
-    }
-
-    u64 SimpleIndex::get_bin_size(u64 numBins, u64 numBalls, u64 statSecParam)
-    {
-
-        auto B = std::max<u64>(1, numBalls / numBins);
-
-        double currentProb = getBinOverflowProb(numBins, numBalls, B);
-        u64 step = 1;
-
-        bool doubling = true;
-
-        while (currentProb < statSecParam || step > 1)
-        {
-            if (!step)
-                throw std::runtime_error(LOCATION);
-
-
-            if (statSecParam > currentProb)
-            {
-                if (doubling) step = std::max<u64>(1, step * 2);
-                else          step = std::max<u64>(1, step / 2);
-
-                B += step;
-            }
-            else
-            {
-                doubling = false;
-                step = std::max<u64>(1, step / 2);
-                B -= step;
-            }
-            currentProb = getBinOverflowProb(numBins, numBalls, B);
-        }
-
-        return B;
-    }
-
-#endif
-
-    void SimpleIndex::init(u64 numBalls, bool isReceiver, u64 statSecParam)
-    {
-		if (numBalls <= 1 << 8)
-		{
-			mNumBins = 0.0430*numBalls;
-			mMaxBinSize = 63;
-		}
-		else if (numBalls <= 1 << 12)
-		{
-			mNumBins = 0.0557*numBalls;
-			mMaxBinSize = 59;
-		}
-		else if (numBalls <= 1 << 16)
-		{
-			mNumBins = 0.0491*numBalls;
-			mMaxBinSize = 66;
-		}
-		else if (numBalls <= 1 << 20)
-		{
-			mNumBins = 0.0470*numBalls;
-			mMaxBinSize = 70;
-		}
-		else
-			throw std::runtime_error("not implemented");
-
+		numIters = 0;
+		mNumBins = numBins;
+		mNumDummies = numDummies;
+		mHashSeed = _mm_set_epi32(4253465, 3434565, 234435, 23987025); //hardcode hash
+		mAesHasher.setKey(mHashSeed);
 		mBins.resize(mNumBins);
-		
-		if (isReceiver) 
-			mMaxBinSize += 1;
-
-		/*for (u64 i = 0; i < mBins.size(); i++)
-		{
-			mBins[i].items.resize(mMaxBinSize);
-		}*/
-
-		mBlkDefaut = OneBlock;
-
     }
 
 
-    void SimpleIndex::insertItems(span<block> items, u64 numThreads)
+    void SimpleIndex::insertItems(span<block> items)
     {
+		u64 inputSize = items.size(), mMaxBinSize =mNumDummies+ inputSize / mNumBins;
+		std::vector<u64> heavyBins;
 
-        AES hasher(mHashSeed);
-		u64 inputSize = items.size();
-		std::mutex mtx;
-		const bool isMultiThreaded = numThreads > 1;
+		block cipher;
+		u64 b1, b2; //2 bins index
 
-		auto routineHashing = [&](u64 t)
+		//1st pass
+		for (u64 idxItem = 0; idxItem < inputSize; ++idxItem)
 		{
-			u64 inputStartIdx = inputSize * t / numThreads;
-			u64 tempInputEndIdx = (inputSize * (t + 1) / numThreads);
-			u64 inputEndIdx = std::min(tempInputEndIdx, inputSize);
+			cipher = mAesHasher.ecbEncBlock(items[idxItem]);
 
-			for (u64 i = inputStartIdx; i < inputEndIdx; ++i)
-			{
-				block temp = hasher.ecbEncBlock(items[i]);
-				u64 addr = *(u64*)&temp % mNumBins;
+			b1 = _mm_extract_epi64(cipher, 0) % mNumBins; //1st 64 bits for finding bin location
+			b2 = _mm_extract_epi64(cipher, 1) % mNumBins; //2nd 64 bits for finding alter bin location
 
-					if (isMultiThreaded)
-					{
-						std::lock_guard<std::mutex> lock(mtx);
-						mBins[addr].items.push_back(items[i]);
-					}
-					else
-					{
-						mBins[addr].items.push_back(items[i]);
-					}
-
-			}
-		};
-
-		std::vector<std::thread> thrds(numThreads);
-		for (u64 i = 0; i < u64(numThreads); ++i)
-		{
-			thrds[i] = std::thread([=] {
-				routineHashing(i);
-			});
-		}
-
-		for (auto& thrd : thrds)
-			thrd.join();
-
-
-		//For debug
-		mBins[1].items[1] = AllOneBlock;
-
-
-		//add a default block 
-			for (u64 i = 0; i < mNumBins; ++i)
-			{
-				if (mBins[i].items.size()<mMaxBinSize)
-					mBins[i].items.push_back(mBlkDefaut);
-
-				mBins[i].mBinRealSizes = mBins[i].items.size();
-			}
+			if (mBins[b1].cnt> mBins[b2].cnt)//assume that b1 is lightest, if not, swap b1 <-> b2
+				std::swap(b1, b2);
 
 			
+			auto iterB2 = mBins[b1].values.find(b2); 
+
+			if (iterB2 != mBins[b1].values.end())  //if bins[b1] has b2 as unordered_map<b2,...>, insert index of this item
+				iterB2->second.emplace_back(idxItem);
+			else
+				mBins[b1].values.emplace(std::make_pair(b2, std::vector<u64>{idxItem})); //if not, insert new map
+
+			mBins[b1].cnt++; 
+		}
+
+
+		//find light/heavy bins after 1st pass
+		for (u64 idxBin = 0; idxBin < mNumBins; ++idxBin)
+		{
+			for (auto it = mBins[idxBin].values.begin(); it != mBins[idxBin].values.end(); ++it)//for each bin, list all alter light bins
+			{
+				if (mBins[it->first].cnt < mMaxBinSize)
+					mBins[idxBin].lightBins.emplace_back(it->first); 
+			}
+
+			if (mBins[idxBin].cnt >= mMaxBinSize)
+				heavyBins.emplace_back(idxBin);
+		}
+	//	std::cout << "heavyBins.size() " << heavyBins.size() << "\n";
 
 
 
-		//pad with default block 
-		//auto routineFullBins = [&](u64 t)
-		//{
-		//	u64 binStartIdx = mNumBins * t / numThreads;
-		//	u64 tempBinEndIdx = (mNumBins * (t + 1) / numThreads);
-		//	u64 binEndIdx = std::min(tempBinEndIdx, mNumBins);
+		//=====================Self-Balacing-Step==========================
 
-		//	for (u64 i = binStartIdx; i < binEndIdx; ++i)
-		//	{
-		//		mBins[i].mBinRealSizes = mBins[i].items.size();
-		//		mBins[i].items.push_back(mBlkDefaut);
+		
+		bool isError = false;
+		block x;
 
-		//		//mBins[i].items.resize(mMaxBinSize, mBlkDefaut);
-
-		//	}
-		//};
-
-		//for (u64 i = 0; i < u64(numThreads); ++i)
-		//{
-		//	thrds[i] = std::thread([=] {
-		//		routineFullBins(i);
-		//	});
-		//}
-
-		//for (auto& thrd : thrds)
-		//	thrd.join();
+		while (heavyBins.size() > 0 && !isError)
+		{
+			//std::cout << numIters << "\t " << heavyBins.size() << "\n";
 
 
-    }
+			u64 b1 = heavyBins[rand() % heavyBins.size()]; //choose random bin that is heavy
+		
+			if (mBins[b1].lightBins.size() > 0)
+			{
+				u64 i2 = rand() % mBins[b1].lightBins.size(); //choose random alter bin, that is light, to balance
+				u64 b2 = mBins[b1].lightBins[i2];
+
+				if (mBins[b2].cnt < mBins[b1].cnt) //if true, do the balance (double check in some unexpected cases)
+				{
+					auto curSubBin = mBins[b1].values.find(b2);
+
+					u64 rB = rand() % 2;
+
+					//	if (rB == 1 || mBins[b2].cnt + 1 != mBins[b1].cnt) //if not tie
+					{
+
+						if (curSubBin->second.size() == 0)
+							continue;
+
+						u64 idxBalanced = rand() % curSubBin->second.size(); //choose random item of bin b1 that can move to b2
+
+						//Remove item
+						u64 idxBalancedItem = curSubBin->second[idxBalanced];
+						curSubBin->second.erase(curSubBin->second.begin() + idxBalanced); //remove that item from b1
+						mBins[b1].cnt--;
+
+						if (mBins[b1].cnt < mMaxBinSize) //b1 may no longer a heavy bin 
+						{
+							auto it = std::find(heavyBins.begin(), heavyBins.end(), b1);
+							heavyBins.erase(it);
+						}
+
+
+						auto newSubBin = mBins[b2].values.find(b1); //place idxBalancedItem into b2
+
+						if (newSubBin != mBins[b2].values.end()) {  //if bins[b2] has b1 as unordered_map<b1,...>, emplace it into <b1,...>
+							newSubBin->second.emplace_back(idxBalancedItem);
+
+							if (mBins[b1].cnt < mMaxBinSize)
+								mBins[b2].lightBins.emplace_back(b1);
+						}
+						else
+						{
+							mBins[b2].values.emplace(std::make_pair(b1, std::vector<u64>{idxBalancedItem}));
+							mBins[b2].lightBins.emplace_back(b1);
+						}
+
+						mBins[b2].cnt++;
+
+						//b2 may become an heavy bin
+						if (mBins[b2].cnt >= mMaxBinSize)
+						{
+							heavyBins.emplace_back(b2);
+							mBins[b1].lightBins.erase(mBins[b1].lightBins.begin() + i2);
+						}
+					}
+
+					numIters++;
+				}
+				//else {
+				//	std::cout <<" ====================" << "\n";
+
+				//	std::cout << b1 << "\t" << mBins[b1].cnt << "\n";
+				//	std::cout << b2 << "\t" << mBins[b2].cnt << "\n";
+				////	isError = true;
+				//}
+			}
+		}
+
+		
+}
 
 }

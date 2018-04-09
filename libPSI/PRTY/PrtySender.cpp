@@ -4,104 +4,162 @@
 #include <cryptoTools/Network/Channel.h>
 #include <cryptoTools/Common/Timer.h>
 #include "libOTe/Base/naor-pinkas.h"
-#include "libPSI/PsiDefines.h"
 #include "Tools/SimpleIndex.h"
+#include <unordered_map>
 
 namespace osuCrypto
 {
     using namespace std;
+	using namespace NTL;
 
 
 	void PrtySender::init(u64 psiSecParam, PRNG & prng, span<block> inputs, span<Channel> chls)
 	{
+		
 		mPsiSecParam = psiSecParam;
 		mPrng.SetSeed(prng.get<block>());
-		recvOprf.configure(false, psiSecParam, 128);
-		sendOprf.configure(false, psiSecParam, 128);
+		mFieldSize = 512; // TODO
+		mNumBins = 1 << 4;
 
-		u64 baseCount = sendOprf.getBaseOTCount();
-
-
+		std::vector<std::array<block, 2>> baseOtSend(128);
 		NaorPinkas baseOTs;
-		mBaseOTSend.resize(baseCount);
-		baseOTs.send(mBaseOTSend, mPrng, chls[0], 1);
-		recvOprf.setBaseOts(mBaseOTSend);
+		baseOTs.send(baseOtSend, mPrng, chls[0], 1);
 
-		mBaseChoice.resize(baseCount);
-		mBaseChoice.randomize(mPrng);
-		mBaseOTRecv.resize(baseCount);
-		baseOTs.receive(mBaseChoice, mBaseOTRecv, mPrng, chls[0], 1);
-		sendOprf.setBaseOts(mBaseOTRecv, mBaseChoice);
 
 		
-		std::cout << "baseCount "<< baseCount << std::endl;
+		IknpOtExtReceiver recvIKNP;
+		recvIKNP.setBaseOts(baseOtSend);
 
-		
+		mOtChoices.resize(mFieldSize);
+		mOtChoices.randomize(mPrng);
+		std::vector<block> OtKeys(mFieldSize);
 
+		recvIKNP.receive(mOtChoices, OtKeys, mPrng, chls[0]);
+
+		mAesQ.resize(mFieldSize);
+		for (u64 i = 0; i < mFieldSize; i++)
+			mAesQ[i].setKey(OtKeys[i]);
+
+		mRowQ.resize(inputs.size());
+		//mOneBlocks.resize(128);
+		fillOneBlock(mOneBlocks);
+		GenGermainPrime(mPrime, primeLong);
 	}
 
 	void PrtySender::output(span<block> inputs, span<Channel> chls)
 	{
-		
 		u64 numThreads(chls.size());
+		const bool isMultiThreaded = numThreads > 1;
+		std::mutex mtx;
+		u64 polyMaskBytes = (mFieldSize + 7) / 8;
+		u64 hashMaskBytes = (40+2*log2(inputs.size())+7) / 8;
+		auto choiceBlocks = mOtChoices.getSpan<block>(); //s
+
+		//=====================Balaced Allocation=====================
 		SimpleIndex simple;
-		simple.init(inputs.size(),false);
-		simple.insertItems(inputs, numThreads);
-		//simple.print();
-		//std::cout << IoStream::lock << "Sender: " << simple.mMaxBinSize << "\t " << simple.mNumBins<< std::endl << IoStream::unlock;
+		gTimer.reset();
+		gTimer.setTimePoint("start");
+		simple.init(mNumBins, numDummies);
+		simple.insertItems(inputs);
+		gTimer.setTimePoint("balanced");
+		//std::cout << gTimer << std::endl;
 
-		u64 theirMaxBinSize = simple.mMaxBinSize + 1; //assume same set size, sender has mMaxBinSize, receiver has mMaxBinSize+1
-		u64	numOTs = simple.mNumBins*simple.mMaxBinSize;
-	
-		std::vector<std::vector<block>> Sr(simple.mNumBins);
-		for (u64 i = 0; i < simple.mNumBins; i++)
-			Sr[i].resize(simple.mMaxBinSize);
+	/*	std::cout << IoStream::lock;
+		simple.print(inputs);
+		std::cout << IoStream::unlock;*/
 
-		recvOprf.init( numOTs, mPrng, chls[0]); 
-		sendOprf.init(numOTs, mPrng, chls[0]); //PEQT
-
-		IknpOtExtSender sendIKNP;
-		BitVector baseChoices(128);
-		std::vector<block> baseRecv(128);
-
-		baseChoices.copy(mBaseChoice, 0, 128);
-		baseRecv.assign(mBaseOTRecv.begin(), mBaseOTRecv.begin() + 128);
-
-		/*for (u64 i = 0; i < baseRecv.size(); i++)
-		{
-			baseChoices[i] = mBaseChoice[i];
-			baseRecv[i] = mBaseOTRecv[i];
-		}*/
-
-		sendIKNP.setBaseOts(baseRecv, baseChoices);
-		std::vector<std::array<block, 2>> sendOTMsg(numOTs);
-		sendIKNP.send(sendOTMsg, mPrng, chls[0]);
-
-
-		//poly
-		u64 polyMaskBytes = (mPsiSecParam + log2(theirMaxBinSize + 1) + 7) / 8;
-
-
+		//=====================Compute OT row=====================
 		auto routine = [&](u64 t)
 		{
 			auto& chl = chls[t];
 			u64 binStartIdx = simple.mNumBins * t / numThreads;
 			u64 tempBinEndIdx = (simple.mNumBins * (t + 1) / numThreads);
 			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
-			
+			block temp;
+
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
-				std::vector<block> recvEncoding(curStepSize*simple.mMaxBinSize);
+
+				std::vector<u8> sendBuff(curStepSize*simple.mMaxBinSize*hashMaskBytes);
+
+				std::vector<u8> recvBuff;
+				chl.recv(recvBuff); //receive Poly
+				if (recvBuff.size() != curStepSize*simple.mMaxBinSize*polyMaskBytes)
+				{
+					std::cout << "error @ " << (LOCATION) << std::endl;
+					throw std::runtime_error(LOCATION);
+				}
+
+				u64 idxRow = 0;
 
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
-					u64 binIdx = i + k;
+					u64 bIdx = i + k;
 
+					std::vector<u64> subIdxItems(simple.mMaxBinSize);
+					std::vector<block> finalHashes(simple.mMaxBinSize);
+					std::vector<std::array<block, numSuperBlocks>> rowQ(simple.mMaxBinSize);
+
+
+					//=====================Compute OT row=====================
+					for (auto it = simple.mBins[bIdx].values.begin(); it != simple.mBins[bIdx].values.end(); ++it)
+					{
+						for (u64 idx = 0; idx < it->second.size(); idx++)
+						{
+							//std::cout << "\t" << inputs[it->second[idx]] << std::endl;
+							prfOtRow(inputs[it->second[idx]], rowQ[idxRow], mAesQ);
+							subIdxItems[idxRow] = it->second[idx];
+							idxRow++;
+						}
+					}
+					
+					//=====================Unpack=====================
+					u64 degree = rowQ.size() - 1;
+					ZZ zz;
+					ZZ_p* zzX = new ZZ_p[subIdxItems.size()];
+					ZZ_p* zzY = new ZZ_p[rowQ.size()];
+					ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+					block rcvBlk;
+					ZZ_pX recvPoly;
+					ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+
+
+
+					for (u64 idx = 0; idx < subIdxItems.size(); ++idx)
+					{
+						ZZFromBytes(zz, (u8*)&inputs[subIdxItems[idx]], sizeof(block));
+						zzX[idx] = to_ZZ_p(zz);
+					}
+
+					build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+
+
+					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+					{
+						for (int c = 0; c<degree; c++) {
+							memcpy((u8*)&rcvBlk, recvBuff.data() + (k*j*rowQ.size() + c) * sizeof(block), sizeof(block));
+							ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
+							SetCoeff(recvPoly, c, to_ZZ_p(zz));
+						}
+
+						evaluate(recvPoly, p_tree, reminders, degree * 2 + 1, zzY, 1, mPrime);
+
+						for (int idx = 0; idx < rowQ.size(); idx++) {
+							BytesFromZZ((u8*)&rcvBlk, rep(zzY[idx]), sizeof(block));
+							rcvBlk = rowQ[idx][j]^(rcvBlk&choiceBlocks[j]); //Q+s*P
+
+							finalHashes[idx]=simple.mAesHasher.ecbEncBlock(rcvBlk)^ finalHashes[idx]; //compute H(Q+s*P)=xor of all slices
+						}
+
+					}
+
+					for (int idx = 0; idx < finalHashes.size(); idx++) {
+						memcpy(sendBuff.data() + (k*simple.mMaxBinSize+idx)*hashMaskBytes, (u8*)&finalHashes[idx], hashMaskBytes);
+					}
 
 				}
-
-
+				chl.asyncSend(std::move(sendBuff)); //send H(Q+s*P)
 			}
 		};
 
@@ -116,6 +174,8 @@ namespace osuCrypto
 
 		for (auto& thrd : thrds)
 			thrd.join();
+
+		gTimer.setTimePoint("Compute OT");
 	}
 
 }

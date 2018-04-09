@@ -2,50 +2,30 @@
 #include "cryptoTools/Common/Defines.h"
 #include "cryptoTools/Common/BitVector.h"
 #include "cryptoTools/Common/Matrix.h"
+#include <unordered_map>
 
 namespace osuCrypto
 {
-    //// a list of {{set size, bit size}}
-    //std::vector<std::array<u64, 2>> binSizes
-    //{
-    //    {1<<12, 18},
-    //    {1<<16, 19},
-    //    {1<<20, 20},
-    //    {1<<24, 21}
-    //};
-    /*{
-        return mVal == u64(-1);
-    }
-
-    u64 CuckooIndex::Bin::idx() const
-    {
-        return mVal  & (u64(-1) >> 8);
-    }
-
-    u64 CuckooIndex::Bin::hashIdx() const
-    {
-        return mVal >> 56;*/
-
     class SimpleIndex
     {
     public:
 
-		struct bin
+		struct Bin
 		{
-			std::vector<block> items;
-			u64 mBinRealSizes;
+			std::unordered_map<u64, std::vector<u64>> values; //<IdxAlterBin, index of items which have this alter bin>
+			std::vector<u64> lightBins; //index of alternative light Bins
+			u64 cnt;
 		};
 
-        u64 mMaxBinSize, mNumBins;
-        std::vector<bin> mBins;
+
+        u64 mNumBalls, mNumBins, mNumDummies, numIters, mMaxBinSize;
+
+        std::vector<Bin> mBins;
         block mHashSeed;
-		block mBlkDefaut;
-        void print() ;
-
-        //static  u64 get_bin_size(u64 numBins, u64 numBalls, u64 statSecParam);
-
-		void init(u64 numBalls, bool isSender=true, u64 statSecParam = 40);
-        void insertItems(span<block> items, u64 numThreads);
+		AES mAesHasher;
+        void print(span<block> items) ;
+		void init(u64 numBins, u64 numDummies, u64 statSecParam = 40);
+        void insertItems(span<block> items);
     };
 
 }

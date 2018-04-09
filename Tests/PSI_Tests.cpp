@@ -122,7 +122,7 @@ namespace tests_libOTe
     void Hashing_Test_Impl()
 	{
 		setThreadName("Sender");
-		u64 setSize = 1<<8, psiSecParam = 40,  numThreads(2);
+		u64 setSize = 1<<20, psiSecParam = 40,  numThreads(2);
 
 		PRNG prng(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
@@ -132,9 +132,13 @@ namespace tests_libOTe
 			set[i] = prng.get<block>();
 
 		SimpleIndex simple;
-		simple.init(setSize);
-		simple.insertItems(set,numThreads);
-		simple.print();
+		gTimer.reset();
+		gTimer.setTimePoint("start");
+		simple.init(1<<10,1);
+		simple.insertItems(set);
+		gTimer.setTimePoint("end");
+		std::cout << gTimer << std::endl;
+		simple.print(set);
 
 	}
 
@@ -249,197 +253,186 @@ namespace tests_libOTe
 	void FFT_Poly_Test_Impl() {
 
 		ZZ prime;
+		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+
 		GenGermainPrime(prime, 128);
 
-		long degree = 480;
+		long degree = 66;
 
 		// init underlying prime field
 		ZZ_p::init(ZZ(prime));
 
 		// interpolation points:
-		ZZ_p* x = new ZZ_p[degree + 1];
-		ZZ_p* y = new ZZ_p[degree + 1];
+		ZZ_p* xx = new ZZ_p[degree + 1];
+		ZZ_p* yy = new ZZ_p[degree + 1];
+		ZZ zz;
+
+		std::vector<block> X(degree+1), Y(degree + 1);
+		for (u64 i = 0; i < X.size(); ++i)
+		{
+			X[i] = prng0.get<block>();
+			Y[i] = prng0.get<block>();
+		}
+
 		for (unsigned int i = 0; i <= degree; i++) {
-			random(x[i]);
-			random(y[i]);
-			//        cout << "(" << x[i] << "," << y[i] << ")" << endl;
+			
+			ZZFromBytes(zz, (u8*)&X[i], sizeof(block));
+			xx[i] = to_ZZ_p(zz);
+
+			ZZFromBytes(zz, (u8*)&Y[i], sizeof(block));
+			yy[i] = to_ZZ_p(zz);
+
 		}
 
 		ZZ_pX P;
 
-		interpolate_zp(P, x, y, degree,1,prime);
-
-		//cout << "P: "; print_poly(P); cout << endl;
-		test_interpolation_result_zp(P, x, y, degree);
-
-	}
+		interpolate_zp(P, xx, yy, degree,1,prime);
 
 
 
-	// For Queue Size
-#define SIZE 50
 
-	// A tree node
-	struct node
-	{
-		int idx;
-		ZZ_pX data;
-		struct node *right, *left;
-	};
+		test_interpolation_result_zp(P, xx, yy, degree);
 
-	// A queue node
-	struct Queue
-	{
-		int front, rear;
-		int size;
-		struct node* *array;
-	};
 
-	// A utility function to create a new tree node
-	struct node* newNode(int idx)
-	{
-		struct node* temp = (struct node*) malloc(sizeof(struct node));
-		temp->idx = idx;
-		temp->left = temp->right = NULL;
-		return temp;
-	}
-
-	// A utility function to create a new Queue
-	struct Queue* createQueue(int size)
-	{
-		struct Queue* queue = (struct Queue*) malloc(sizeof(struct Queue));
-
-		queue->front = queue->rear = -1;
-		queue->size = size;
-
-		queue->array = (struct node**) malloc(queue->size * sizeof(struct node*));
-
-		int i;
-		for (i = 0; i < size; ++i)
-			queue->array[i] = NULL;
-
-		return queue;
-	}
-
-	// Standard Queue Functions
-	int isEmpty(struct Queue* queue)
-	{
-		return queue->front == -1;
-	}
-
-	int isFull(struct Queue* queue)
-	{
-		return queue->rear == queue->size - 1;
-	}
-
-	int hasOnlyOneItem(struct Queue* queue)
-	{
-		return queue->front == queue->rear;
-	}
-
-	void Enqueue(struct node *root, struct Queue* queue)
-	{
-		if (isFull(queue))
-			return;
-
-		queue->array[++queue->rear] = root;
-
-		if (isEmpty(queue))
-			++queue->front;
-	}
-
-	struct node* Dequeue(struct Queue* queue)
-	{
-		if (isEmpty(queue))
-			return NULL;
-
-		struct node* temp = queue->array[queue->front];
-
-		if (hasOnlyOneItem(queue))
-			queue->front = queue->rear = -1;
-		else
-			++queue->front;
-
-		return temp;
-	}
-
-	struct node* getFront(struct Queue* queue)
-	{
-		return queue->array[queue->front];
-	}
-
-	// A utility function to check if a tree node has both left and right children
-	int hasBothChild(struct node* temp)
-	{
-		return temp && temp->left && temp->right;
-	}
-
-	// Function to insert a new node in complete binary tree
-	void insert(struct node **root, int idx, struct Queue* queue)
-	{
-		// Create a new node for given idx
-		struct node *temp = newNode(idx);
-
-		// If the tree is empty, initialize the root with new node.
-		if (!*root)
-			*root = temp;
-
-		else
-		{
-			// get the front node of the queue.
-			struct node* front = getFront(queue);
-
-			// If the left child of this front node doesn’t exist, set the
-			// left child as the new node
-			if (!front->left)
-				front->left = temp;
-
-			// If the right child of this front node doesn’t exist, set the
-			// right child as the new node
-			else if (!front->right)
-				front->right = temp;
-
-			// If the front node has both the left child and right child,
-			// Dequeue() it.
-			if (hasBothChild(front))
-				Dequeue(queue);
+		ZZ_pX P1;
+		for (unsigned int i = 0; i <= degree; i++) {
+			SetCoeff(P1, i,P.rep[i]);
 		}
 
-		// Enqueue() the new node for later insertions
-		Enqueue(temp, queue);
-	}
 
-	// Standard level order traversal to test above function
-	void levelOrder(struct node* root)
-	{
-		struct Queue* queue = createQueue(SIZE);
+		ZZ_p* y2 = new ZZ_p[degree + 1];
 
-		Enqueue(root, queue);
+		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+		build_tree(p_tree, xx, degree * 2 + 1, 1, prime);
 
-		while (!isEmpty(queue))
-		{
-			struct node* temp = Dequeue(queue);
+		ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+		evaluate(P, p_tree, reminders, degree * 2 + 1, y2, 1, prime);
 
-			cout<<temp->idx << " ";
-
-			if (temp->left)
-				Enqueue(temp->left, queue);
-
-			if (temp->right)
-				Enqueue(temp->right, queue);
+		for (long i = 0; i< degree + 1; i++) {
+			if (y2[i] != yy[i]) {
+				cout << "Error! x = " << xx[i] << ", y = " << yy[i] << ", res = " << y2[i]<< endl;
+			}
 		}
+
+		cout << "Polynomialxx is interpolated correctly!" << endl;
+
+
+
+		ZZFromBytes(zz, (u8*)&X[0], sizeof(block));
+		ZZ_p tt= to_ZZ_p(zz);
+
+		ZZ_p res;
+		eval(res, P, tt);
+
+		block blkres;
+		BytesFromZZ((u8*)&blkres, rep(res), sizeof(block));
+
+		std::cout << blkres << "\n";
+		std::cout << Y[0] << "\n";
+
+
+		//test_interpolation_result_zp(P, x, y, long degree)
+
+
 	}
 
-	void tree_impl()
+
+	void Prty_PSI_impl()
 	{
-		struct node* root = NULL;
-		struct Queue* queue = createQueue(SIZE);
-		int i;
+		setThreadName("Sender");
+		u64 setSize = 1 << 12, psiSecParam = 40, numThreads(1);
 
-		for (i = 0; i <= 6; ++i)
-			insert(&root, i, queue);
+		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+		PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
 
-		levelOrder(root);
+
+		std::vector<block> sendSet(setSize), recvSet(setSize);
+		for (u64 i = 0; i < setSize; ++i)
+		{
+			sendSet[i] = prng0.get<block>();
+			recvSet[i] = prng0.get<block>();
+		}
+		sendSet[0] = recvSet[0]; sendSet[2] = recvSet[2];
+		std::cout << "intersection: " << sendSet[0] << "\t" << sendSet[2] << "\n";
+
+		// set up networking
+		std::string name = "n";
+		IOService ios;
+		Endpoint ep0(ios, "localhost", 1212, EpMode::Client, name);
+		Endpoint ep1(ios, "localhost", 1212, EpMode::Server, name);
+
+		std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
+		for (u64 i = 0; i < numThreads; ++i)
+		{
+			sendChls[i] = ep1.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
+			recvChls[i] = ep0.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
+		}
+
+
+		PrtySender sender;
+		PrtyReceiver recv;
+
+		std::vector<block> rs(2);
+		rs[0] = ZeroBlock;
+		rs[1] = ZeroBlock;
+		fillOneBlock(mOneBlocks);
+
+		auto thrd = std::thread([&]() {
+			recv.init(40, prng1, recvSet, recvChls);
+			recv.output(recvSet, recvChls);
+			
+			//std::array<block, numSuperBlocks> tT,tU;
+			//prfOtRows(recvSet.data(), recvSet.size(), recv.mRowT, recv.mAesT);
+			//prfOtRows(recvSet.data(), recvSet.size(),recv.mRowU, recv.mAesU);
+
+			prfOtRow(recvSet[0], recv.mRowT[0], recv.mAesT);
+			prfOtRow(recvSet[0],recv.mRowU[0], recv.mAesU);
+			prfOtRow(recvSet[1], recv.mRowT[1], recv.mAesT);
+			prfOtRow(recvSet[1], recv.mRowU[1], recv.mAesU);
+
+
+		});
+
+		sender.init(40, prng0, sendSet, sendChls);
+		sender.output(sendSet, recvChls);
+
+		//prfOtRows(sendSet.data(), sendSet.size(), sender.mRowQ, sender.mAesQ);
+		prfOtRow(sendSet[0], sender.mRowQ[0], sender.mAesQ);
+		prfOtRow(sendSet[1], sender.mRowQ[1], sender.mAesQ);
+
+		
+
+
+		thrd.join();
+
+
+		//check correct OT
+		for (int i = 0; i < 2; ++i) {
+
+			for (int j = 0; j < numSuperBlocks; ++j) {
+				std::cout << sender.mRowQ[i][j] << "\n";
+				block test;
+				test = recv.mRowT[i][j] ^ recv.mRowU[i][j];
+				auto choiceBlocks = sender.mOtChoices.getSpan<block>();
+
+				test = (test&choiceBlocks[j]) ^ recv.mRowT[i][j];
+				std::cout << test << "\n";
+			}
+		}
+
+
+
+		for (u64 i = 0; i < numThreads; ++i)
+
+		{
+			sendChls[i].close(); recvChls[i].close();
+		}
+
+		ep0.stop(); ep1.stop();	ios.stop();
+
+		
+		
+	
 
 	}
 

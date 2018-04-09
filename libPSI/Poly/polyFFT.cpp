@@ -6,6 +6,8 @@
 #include <thread>
 #include <NTL/BasicThreadPool.h>
 #include <omp.h>
+//#define fftTest
+
 namespace osuCrypto
 {
 #define LEFT(X) (2*X+1)
@@ -131,7 +133,15 @@ namespace osuCrypto
 		int index;
 		for (int i = subTree.size() - 1; i >= 0; i--) {
 			index = subTree[i];
+
+#ifdef fftTest
+			FFTMul(tree[index], tree[LEFT(index)], tree[RIGHT(index)]);
+#else
 			tree[index] = tree[LEFT(index)] * tree[RIGHT(index)];
+#endif // fftTest
+
+			//
+			
 		}
 	}
 
@@ -139,14 +149,26 @@ namespace osuCrypto
 
 
 		//cout<<"Thread indices";
+	
+
 		ZZ_p::init(prime);
 		int index;
 		for (int i = subTree.size() - 1; i >= 0; i--) {
 			index = subTree[i];
 			//cout<<"--"<<index;
+#ifdef fftTest
+			ZZ_pX tempfft1;
+			FFTMul(tempfft1, temp[LEFT(index)], M[RIGHT(index)]);
 
+			ZZ_pX tempfft2;
+			FFTMul(tempfft2, temp[RIGHT(index)], M[LEFT(index)]);
 
+			temp[index] = tempfft1 + tempfft2;
+#else
 			temp[index] = temp[LEFT(index)] * M[RIGHT(index)] + temp[RIGHT(index)] * M[LEFT(index)];
+#endif // fftTest
+
+			
 
 		}
 
@@ -163,7 +185,12 @@ namespace osuCrypto
 		for (i = 0; i < subTree.size(); i++) {
 			index = subTree[i];
 			//        cout << "i="<<i <<": ";
+			//
+#ifdef fftTest
+			FFTRem(reminders[index], reminders[PAPA(index)], tree[index]);
+#else
 			reminders[index] = reminders[PAPA(index)] % tree[index];
+#endif
 		}
 
 	}
@@ -285,17 +312,42 @@ namespace osuCrypto
 
 	void evalReminder(ZZ_pX *tree, ZZ_pX *reminders, int i, ZZ &prime) {
 		ZZ_p::init(prime);
+#ifdef fftTest
+		FFTRem(reminders[i], reminders[PAPA(i)], tree[i]);
+#else
 		reminders[i] = reminders[PAPA(i)] % tree[i];
+#endif
+
+		
 	}
 
 	void interSpecific(ZZ_pX *temp, ZZ_pX *M, int i, ZZ &prime) {
 		ZZ_p::init(prime);
+
+#ifdef fftTest
+		ZZ_pX tempfft1;
+		FFTMul(tempfft1, temp[LEFT(i)], M[RIGHT(i)]);
+
+		ZZ_pX tempfft2;
+		FFTMul(tempfft2, temp[RIGHT(i)], M[LEFT(i)]);
+
+		temp[i] = tempfft1 + tempfft2;
+#else
 		temp[i] = temp[LEFT(i)] * M[RIGHT(i)] + temp[RIGHT(i)] * M[LEFT(i)];
+#endif // fftTest
+
+		
+
 	}
 
 	void buildTreeSpecific(ZZ_pX *tree, int i, ZZ &prime) {
 		ZZ_p::init(prime);
+		
+#ifdef fftTest
+		FFTMul(tree[i], tree[LEFT(i)], tree[RIGHT(i)]);
+#else
 		tree[i] = tree[LEFT(i)] * tree[RIGHT(i)];
+#endif
 	}
 
 
@@ -485,9 +537,10 @@ namespace osuCrypto
 
 		system_clock::time_point begin[4];
 		system_clock::time_point end[4];
-
+		begin[1] = system_clock::now();
 		build_tree(M, x, degree * 2 + 1, numThreads, prime);
-		
+		end[1] = system_clock::now();
+
 		ZZ_pX D;
 		//we construct a preconditioned global structure for the a_k for all 1<=k<=(degree+1)ZZ_pX D;
 		begin[2] = system_clock::now();
@@ -501,9 +554,9 @@ namespace osuCrypto
 		end[3] = system_clock::now();
 		//    test_evaluate(D,x,a,degree+1);
 
-		cout << "Building tree: " << duration_cast<milliseconds>(end[1] - begin[1]).count() << " ms" << endl;
+		/*cout << "Building tree: " << duration_cast<milliseconds>(end[1] - begin[1]).count() << " ms" << endl;
 		cout << "Differentiate: " << duration_cast<milliseconds>(end[2] - begin[2]).count() << " ms" << endl;
-		cout << "Evaluate diff: " << duration_cast<milliseconds>(end[3] - begin[3]).count() << " ms" << endl;
+		cout << "Evaluate diff: " << duration_cast<milliseconds>(end[3] - begin[3]).count() << " ms" << endl;*/
 
 	}
 

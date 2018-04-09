@@ -6,8 +6,14 @@
 #include <cryptoTools/Network/Channel.h>
 #include "libOTe/NChooseOne/Kkrt/KkrtNcoOtReceiver.h"
 #include "libOTe/NChooseOne/Kkrt/KkrtNcoOtSender.h"
-#include "libOTe/TwoChooseOne/IknpOtExtSender.h"
+#include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
 #include "Poly/polyNTL.h"
+#include "PsiDefines.h"
+#include <NTL/ZZ_p.h>
+#include <NTL/vec_ZZ_p.h>
+#include <NTL/ZZ_pX.h>
+#include <NTL/ZZ.h>
+#include "Poly/polyFFT.h"
 
 #include <array>
 namespace osuCrypto {
@@ -19,19 +25,23 @@ namespace osuCrypto {
 		
 		bool mHasBase;
 
-		u64 mNumOTs, mPolyNumBytes, mPolyDegree, mStepSize, mPsiSecParam;
+		u64 mNumOTs, mPolyNumBytes, mPolyDegree, mStepSize, mPsiSecParam, mNumBins;
 		std::vector<block> mS;
 		KkrtNcoOtReceiver recvOprf;
 		KkrtNcoOtSender sendOprf; //PQET
 		
+		u64 mFieldSize;
+		ZZ mPrime;
 
 		polyNTL poly;
 		PRNG mPrng;
 		
-		std::vector<block> mBaseOTRecv;
-		BitVector mBaseChoice;
-		std::vector<std::array<block, 2>> mBaseOTSend;
+		BitVector mOtChoices;
+		std::vector<std::array<block, numSuperBlocks>> mRowQ;
+		std::vector<AES> mAesQ;
 
+
+		
 		void init(u64 psiSecParam, PRNG& prng, span<block> inputs, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);
 	};

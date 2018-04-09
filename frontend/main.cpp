@@ -238,17 +238,6 @@ void seft_balance1()
 }
 
 #if 1
-struct item
-{
-	block value;
-	u64 alterBin;
-};
-
-struct sBin
-{
-	u64 b2;
-	std::vector<block> data;
-};
 
 
 struct Bin
@@ -568,24 +557,12 @@ void PMT_Test_Impl()
 	auto thrd = std::thread([&]() {
 		recv.init(40, prng1, recvSet, recvChls);
 
-		std::cout << recv.mBaseOTRecv[0] << "\n";
-
-		std::cout << recv.mBaseOTSend[0][0] << "\t";
-		std::cout << recv.mBaseOTSend[0][1] << "\n";
-
-		recv.output(recvSet, recvChls);
-
+		
 	});
 
 	sender.init(40, prng0, sendSet, sendChls);
 
-
-	std::cout << sender.mBaseOTSend[0][0] << "\t";
-	std::cout << sender.mBaseOTSend[0][1] << "\n";
-	std::cout << sender.mBaseOTRecv[0] << "\n";
-
-	sender.output(sendSet, sendChls);
-	thrd.join();
+thrd.join();
 
 
 
@@ -604,9 +581,9 @@ void PMT_Test_Impl()
 void FFT_Poly_Test_Impl() {
 
 	ZZ prime;
-	GenGermainPrime(prime, 128);
+	GenGermainPrime(prime, 440);
 
-	long degree = 1<<20;
+	long degree = 1<<10;
 
 	// init underlying prime field
 	ZZ_p::init(ZZ(prime));
@@ -622,15 +599,19 @@ void FFT_Poly_Test_Impl() {
 	}
 
 	ZZ_pX P;
-
+	u64 numTrials = 1;
 	gTimer.reset();
 	gTimer.setTimePoint("start");
-	interpolate_zp(P, x, y, degree, 16, prime);
+	
+	for (int iTrial = 0; iTrial < numTrials; ++iTrial)
+	{
+		interpolate_zp(P, x, y, degree, 1, prime);
+	}
 	gTimer.setTimePoint("finish");
 	std::cout << gTimer << std::endl;
 
 	//cout << "P: "; print_poly(P); cout << endl;
-	test_interpolation_result_zp(P, x, y, degree);
+	//test_interpolation_result_zp(P, x, y, degree);
 
 }
 
@@ -643,11 +624,76 @@ void usage(const char* argv0)
 	std::cout << "\t\t Receiver terminal: " << argv0 << " -r 1" << std::endl;
 }
 
+
+void Hashing_Test_Impl()
+{
+	setThreadName("Sender");
+	u64 setSize = 1 << 24, psiSecParam = 40, numThreads(2);
+
+	PRNG prng(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+
+
+	std::vector<block> set(setSize);
+	for (u64 i = 0; i < set.size(); ++i)
+		set[i] = prng.get<block>();
+
+	SimpleIndex simple;
+	gTimer.reset();
+	gTimer.setTimePoint("start");
+	simple.init(1 << 19, 2);
+	simple.insertItems(set);
+	gTimer.setTimePoint("end");
+	std::cout << gTimer << std::endl;
+//	simple.print(set);
+
+}
+
+void OTrow() {
+	static std::vector<block> oneBlocks(128);
+	fillOneBlock(oneBlocks);
+	PRNG prng(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
+
+	block temp;
+	block res;
+
+	u64 numTrials = 1 << 20;
+	gTimer.reset();
+	gTimer.setTimePoint("start");
+	for (int iTrial = 0; iTrial < numTrials; ++iTrial)
+		for (int i = 0; i < 128; ++i)
+		{
+			temp = prng.get<block>();
+			temp = temp&oneBlocks[i];
+			res = res ^ temp;
+		}
+
+	gTimer.setTimePoint("xor");
+	std::cout << gTimer << std::endl;
+
+
+	gTimer.reset();
+	gTimer.setTimePoint("start_1");
+	for (int iTrial = 0; iTrial < numTrials; ++iTrial)
+	{
+		std::array<block, 128> test0;
+		for (int i = 0; i < 128; ++i)
+			test0[i] = prng.get<block>();
+
+		sse_transpose128(test0);
+	}
+
+	gTimer.setTimePoint("transposition");
+	std::cout << gTimer << std::endl;
+
+}
+
+
 int main(int argc, char** argv)
 {
 	FFT_Poly_Test_Impl();
+	return 0;
 
-
+	Hashing_Test_Impl();
 	return 0;
 
 
