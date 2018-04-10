@@ -43,7 +43,17 @@ namespace osuCrypto
 		mRowQ.resize(inputs.size());
 		//mOneBlocks.resize(128);
 		fillOneBlock(mOneBlocks);
+		
+#ifdef NTL_Threads_ON
 		GenGermainPrime(mPrime, primeLong);
+#else
+		std::cout << IoStream::lock;
+		GenGermainPrime(mPrime, primeLong);
+		std::cout << IoStream::unlock;
+#endif // NTL_Threads_ON
+
+		
+
 	}
 
 	void PrtySender::output(span<block> inputs, span<Channel> chls)
@@ -59,7 +69,7 @@ namespace osuCrypto
 		SimpleIndex simple;
 		gTimer.reset();
 		gTimer.setTimePoint("start");
-		simple.init(mNumBins, numDummies);
+		simple.init(inputs.size(),mNumBins, numDummies);
 		simple.insertItems(inputs);
 		gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;
@@ -77,30 +87,23 @@ namespace osuCrypto
 			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
 			block temp;
 
+			polyNTL poly;
+			poly.NtlPolyInit(128 / 8);
+
+
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
 
-				std::vector<u8> sendBuff(curStepSize*simple.mMaxBinSize*hashMaskBytes);
-
-				std::vector<u8> recvBuff;
-				chl.recv(recvBuff); //receive Poly
-				if (recvBuff.size() != curStepSize*simple.mMaxBinSize*polyMaskBytes)
-				{
-					std::cout << "error @ " << (LOCATION) << std::endl;
-					throw std::runtime_error(LOCATION);
-				}
-
-				u64 idxRow = 0;
-
+				
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
+					u64 idxRow = 0;
 
 					std::vector<u64> subIdxItems(simple.mMaxBinSize);
 					std::vector<block> finalHashes(simple.mMaxBinSize);
 					std::vector<std::array<block, numSuperBlocks>> rowQ(simple.mMaxBinSize);
-
 
 					//=====================Compute OT row=====================
 					for (auto it = simple.mBins[bIdx].values.begin(); it != simple.mBins[bIdx].values.end(); ++it)
@@ -113,9 +116,22 @@ namespace osuCrypto
 							idxRow++;
 						}
 					}
+
+					sendBuff.resize(curStepSize*simple.mMaxBinSize*hashMaskBytes);
+					
+					chl.recv(recvBuff); //receive Poly
+					if (recvBuff.size() != curStepSize*simple.mMaxBinSize*numSuperBlocks * sizeof(block));
+					{
+						std::cout << "error @ " << (LOCATION) << std::endl;
+						throw std::runtime_error(LOCATION);
+					}
 					
 					//=====================Unpack=====================
+
+
+#if 0
 					u64 degree = rowQ.size() - 1;
+					ZZ_p::init(ZZ(mPrime));
 					ZZ zz;
 					ZZ_p* zzX = new ZZ_p[subIdxItems.size()];
 					ZZ_p* zzY = new ZZ_p[rowQ.size()];
@@ -157,9 +173,10 @@ namespace osuCrypto
 					for (int idx = 0; idx < finalHashes.size(); idx++) {
 						memcpy(sendBuff.data() + (k*simple.mMaxBinSize+idx)*hashMaskBytes, (u8*)&finalHashes[idx], hashMaskBytes);
 					}
-
+#endif
 				}
-				chl.asyncSend(std::move(sendBuff)); //send H(Q+s*P)
+				//chl.asyncSend(std::move(sendBuff)); //send H(Q+s*P)
+
 			}
 		};
 

@@ -7,7 +7,7 @@ namespace tests_libOTe
 	void NTL_Poly_Test_Impl();
 	void myTest();
 	void seft_balance();
-	void FFT_Poly_Test_Impl();
+	void Poly_Test_Impl();
 	void Prty_PSI_impl();
 
 }

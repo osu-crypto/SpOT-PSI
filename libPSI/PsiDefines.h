@@ -8,12 +8,13 @@
 #include <NTL/ZZ_pX.h>
 #include <NTL/ZZ.h>
 using namespace NTL;
+//#define NTL_Threads_ON
 
 namespace osuCrypto
 {
 	static const u64 stepSize(8192);
 	static const u8 numSuperBlocks(4); //wide of T (or field size)
-	static const u64 numDummies(1);
+	static const u64 numDummies(2);
 	static const u64 numBins(1 << 4);
 	static std::vector<block> mOneBlocks(128);
 	static const u64 primeLong(128);

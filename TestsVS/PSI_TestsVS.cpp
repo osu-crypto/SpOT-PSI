@@ -34,7 +34,7 @@ namespace tests_libOTe
 		TEST_METHOD(FFT_Poly_TestVS)
 		{
 			InitDebugPrinting();
-			FFT_Poly_Test_Impl();
+			Poly_Test_Impl();
 		}
 		TEST_METHOD(Prty_PSI_Impl_TestVS)
 		{

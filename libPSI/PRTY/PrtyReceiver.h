@@ -41,6 +41,9 @@ namespace osuCrypto
 		std::vector<AES> mAesU;
 		std::vector<block> mOneBlocks;
 		std::vector<block> mIntersection;
+		std::vector<u8> sendBuff;
+		std::vector<u8> recvBuff;
+
 
 
 		std::vector<block> Outputs;

@@ -37,11 +37,12 @@ namespace osuCrypto
         std::cout << std::endl;
     }
 
-    void SimpleIndex::init( u64 numBins, u64 numDummies, u64 statSecParam)
+    void SimpleIndex::init(u64 inputSize, u64 numBins, u64 numDummies, u64 statSecParam)
     {
 		numIters = 0;
 		mNumBins = numBins;
 		mNumDummies = numDummies;
+		mMaxBinSize = mNumDummies + inputSize / mNumBins;
 		mHashSeed = _mm_set_epi32(4253465, 3434565, 234435, 23987025); //hardcode hash
 		mAesHasher.setKey(mHashSeed);
 		mBins.resize(mNumBins);
@@ -50,7 +51,7 @@ namespace osuCrypto
 
     void SimpleIndex::insertItems(span<block> items)
     {
-		u64 inputSize = items.size(), mMaxBinSize =mNumDummies+ inputSize / mNumBins;
+		u64 inputSize = items.size();
 		std::vector<u64> heavyBins;
 
 		block cipher;

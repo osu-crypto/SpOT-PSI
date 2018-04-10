@@ -39,7 +39,8 @@ namespace osuCrypto {
 		BitVector mOtChoices;
 		std::vector<std::array<block, numSuperBlocks>> mRowQ;
 		std::vector<AES> mAesQ;
-
+		std::vector<u8> sendBuff;
+		std::vector<u8> recvBuff;
 
 		
 		void init(u64 psiSecParam, PRNG& prng, span<block> inputs, span<Channel> chls);

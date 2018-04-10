@@ -48,7 +48,15 @@ namespace osuCrypto
 
 		//+mOneBlocks.resize(128);
 		fillOneBlock(mOneBlocks);
+
+#ifdef NTL_Threads_ON
 		GenGermainPrime(mPrime, primeLong);
+#else
+		std::cout << IoStream::lock;
+		GenGermainPrime(mPrime, primeLong);
+		std::cout << IoStream::unlock;
+#endif // NTL_Threads_ON
+
 	}
 	void PrtyReceiver::output(span<block> inputs, span<Channel> chls)
 	{
@@ -62,7 +70,7 @@ namespace osuCrypto
 		SimpleIndex simple;
 		gTimer.reset();
 		gTimer.setTimePoint("start");
-		simple.init(mNumBins, numDummies);
+		simple.init(inputs.size(),mNumBins, numDummies);
 		simple.insertItems(inputs);
 		gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;
@@ -81,29 +89,29 @@ namespace osuCrypto
 			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
 			block temp;
 
+			polyNTL poly;
+			poly.NtlPolyInit(128 / 8);
+
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
 
-				std::vector<u8> sendBuff(curStepSize*simple.mMaxBinSize*polyMaskBytes);
-				std::vector<u8> recvBuff;
+				sendBuff.resize(curStepSize*simple.mMaxBinSize*numSuperBlocks*sizeof(block));
 				std::unordered_map<u64, block> localMasks;
 				localMasks.reserve(curStepSize*simple.mMaxBinSize);
 
 				std::vector<std::array<block, numSuperBlocks>> rowT(curStepSize*simple.mMaxBinSize);
 				std::vector<u64> subIdxItems(curStepSize*simple.mMaxBinSize);
 
+				u64 iter = 0;
 
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
 
-
 					std::vector<std::array<block, numSuperBlocks>> rowU(simple.mMaxBinSize);
 					std::vector<std::array<block, numSuperBlocks>> rowR(simple.mMaxBinSize);
-
 					u64 idxRow = 0;
-
 					//=====================Compute OT row=====================
 					for (auto it = simple.mBins[bIdx].values.begin(); it != simple.mBins[bIdx].values.end(); ++it)
 					{
@@ -117,21 +125,44 @@ namespace osuCrypto
 						}
 					}
 
-
 					//comput R=T+U
 					for (u64 idx = 0; idx < idxRow; ++idx)
 						for (u64 j = 0; j < numSuperBlocks; ++j)
 							rowR[idx][j] = rowT[k*simple.mMaxBinSize + idx][j] ^ rowU[idx][j];
 
-
 					//pad with dummy
 					for (u64 idx = idxRow; idx < rowR.size(); ++idx)
+					{
 						for (u64 j = 0; j < numSuperBlocks; ++j)
 							rowR[idx][j] = mPrng.get<block>();
-
-
+					}
 					//=====================Pack=====================
-					// interpolation points
+					u64 degree = simple.mMaxBinSize - 1;
+					std::vector<block> X(idxRow), Y(idxRow), coeffs;
+
+					for (u64 idx = 0; idx < idxRow; ++idx)
+						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*simple.mMaxBinSize + idx]], sizeof(block));
+
+					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+					{
+						for (u64 idx = 0; idx < idxRow; ++idx)
+							memcpy((u8*)&Y[idx], (u8*)&rowR[idx][j], sizeof(block));
+
+						poly.getBlkCoefficients(degree,X , Y, coeffs);
+
+
+						if (coeffs.size() != simple.mMaxBinSize)
+							std::cout << k << "\n";
+
+						for (int c = 0; c<coeffs.size(); c++) {
+							memcpy(sendBuff.data() + iter , (u8*)&coeffs[c], sizeof(block));
+							iter+= sizeof(block);
+						}
+
+					}
+#if 0
+
+					ZZ_p::init(ZZ(mPrime));
 					u64 degree = rowR.size() - 1;
 					ZZ_p::init(ZZ(mPrime));
 					ZZ_p* zzX = new ZZ_p[rowR.size()];
@@ -142,11 +173,14 @@ namespace osuCrypto
 					ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
 					ZZ_pX Polynomial;
 
-					for (u64 idx = 0; idx < simple.mMaxBinSize; ++idx)
+					for (u64 idx = 0; idx < idxRow; ++idx)
 					{
 						ZZFromBytes(zz, (u8*)&inputs[subIdxItems[k*simple.mMaxBinSize + idx]], sizeof(block));
 						zzX[idx] = to_ZZ_p(zz);
 					}
+
+					for (u64 idx = idxRow; idx < rowR.size(); ++idx) //dummy
+						random(zzX[idx]);
 
 					prepareForInterpolate(zzX, degree, M, a, 1, mPrime);
 
@@ -155,7 +189,7 @@ namespace osuCrypto
 						for (u64 idx = 0; idx < rowR.size(); ++idx)
 						{
 							ZZFromBytes(zz, (u8*)&rowR[idx][j], sizeof(block));
-							zzY[k] = to_ZZ_p(zz);
+							zzY[idx] = to_ZZ_p(zz);
 						}
 
 						iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, 1, mPrime);
@@ -164,9 +198,17 @@ namespace osuCrypto
 							BytesFromZZ(sendBuff.data() + (k*j*rowR.size() + c) * sizeof(block), rep(Polynomial.rep[c]), sizeof(block));
 						}
 					}
+#endif
+
+
+				
+
+
+
 				}
 				chl.asyncSend(std::move(sendBuff)); //send poly
-				
+		
+#if 0
 				block cipher;
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
@@ -209,6 +251,7 @@ namespace osuCrypto
 						theirMasks += hashMaskBytes;
 					}
 				}
+#endif
 
 			}
 

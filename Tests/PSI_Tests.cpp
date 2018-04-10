@@ -134,7 +134,7 @@ namespace tests_libOTe
 		SimpleIndex simple;
 		gTimer.reset();
 		gTimer.setTimePoint("start");
-		simple.init(1<<10,1);
+		simple.init(setSize,1<<10,1);
 		simple.insertItems(set);
 		gTimer.setTimePoint("end");
 		std::cout << gTimer << std::endl;
@@ -250,97 +250,129 @@ namespace tests_libOTe
 	using namespace std;
 	using namespace NTL;
 
-	void FFT_Poly_Test_Impl() {
-
-		ZZ prime;
-		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
-
-		GenGermainPrime(prime, 128);
+	void Poly_Test_Impl() {
 
 		long degree = 66;
+		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
-		// init underlying prime field
-		ZZ_p::init(ZZ(prime));
 
-		// interpolation points:
-		ZZ_p* xx = new ZZ_p[degree + 1];
-		ZZ_p* yy = new ZZ_p[degree + 1];
-		ZZ zz;
-
-		std::vector<block> X(degree+1), Y(degree + 1);
-		for (u64 i = 0; i < X.size(); ++i)
 		{
-			X[i] = prng0.get<block>();
-			Y[i] = prng0.get<block>();
-		}
+			std::vector<block> X(degree + 1), Y(degree + 1), Y2(degree + 1),coeffs;
+			for (u64 i = 0; i < X.size(); ++i)
+			{
+				X[i] = prng0.get<block>();
+				Y[i] = prng0.get<block>();
 
-		for (unsigned int i = 0; i <= degree; i++) {
-			
-			ZZFromBytes(zz, (u8*)&X[i], sizeof(block));
-			xx[i] = to_ZZ_p(zz);
-
-			ZZFromBytes(zz, (u8*)&Y[i], sizeof(block));
-			yy[i] = to_ZZ_p(zz);
-
-		}
-
-		ZZ_pX P;
-
-		interpolate_zp(P, xx, yy, degree,1,prime);
-
-
-
-
-		test_interpolation_result_zp(P, xx, yy, degree);
-
-
-		ZZ_pX P1;
-		for (unsigned int i = 0; i <= degree; i++) {
-			SetCoeff(P1, i,P.rep[i]);
-		}
-
-
-		ZZ_p* y2 = new ZZ_p[degree + 1];
-
-		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
-		build_tree(p_tree, xx, degree * 2 + 1, 1, prime);
-
-		ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
-		evaluate(P, p_tree, reminders, degree * 2 + 1, y2, 1, prime);
-
-		for (long i = 0; i< degree + 1; i++) {
-			if (y2[i] != yy[i]) {
-				cout << "Error! x = " << xx[i] << ", y = " << yy[i] << ", res = " << y2[i]<< endl;
 			}
+
+			polyNTL poly;
+			poly.NtlPolyInit(128 / 8);
+			poly.getBlkCoefficients(degree+2, X, Y, coeffs);
+
+			block temp;
+			poly.evalPolynomial(coeffs, X[0], temp);
+			std::cout << Y[0] << "\t" << temp << "\n";
+
 		}
 
-		cout << "Polynomialxx is interpolated correctly!" << endl;
+		{
+			ZZ prime;
+
+			GenGermainPrime(prime, 128);
+
+			
+
+			ZZ_p::init(ZZ(prime));
+
+			ZZ_p* xx = new ZZ_p[degree + 1];
+			ZZ_p* yy = new ZZ_p[degree + 1];
+			ZZ zz;
+
+			std::vector<block> X(degree + 1);
+			std::vector<std::array<block, numSuperBlocks>> Y(degree + 1);
+			for (u64 i = 0; i < X.size(); ++i)
+			{
+				X[i] = prng0.get<block>();
+				for (u64 j = 0; j < numSuperBlocks; j++)
+				{
+					Y[i][j] = prng0.get<block>();
+				}
+			}
+
+
+			for (unsigned int i = 0; i <= degree; i++) {
+				ZZFromBytes(zz, (u8*)&X[i], sizeof(block));
+				xx[i] = to_ZZ_p(zz);
+			}
+
+			ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
+			ZZ_p *a = new ZZ_p[degree + 1];;
+
+			prepareForInterpolate(xx, degree, M, a, 1, prime);
+
+
+			for (u64 j = 0; j < numSuperBlocks; j++)
+			{
+				for (unsigned int i = 0; i <= degree; i++) {
+					ZZFromBytes(zz, (u8*)&Y[i], sizeof(block));
+					yy[i] = to_ZZ_p(zz);
+				}
+				ZZ_pX P;
+				ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
+				iterative_interpolate_zp(P, temp, yy, a, M, degree * 2 + 1, 1, prime);
+
+				//test_interpolation_result_zp(P, xx, yy, 1);
+			}
 
 
 
-		ZZFromBytes(zz, (u8*)&X[0], sizeof(block));
-		ZZ_p tt= to_ZZ_p(zz);
-
-		ZZ_p res;
-		eval(res, P, tt);
-
-		block blkres;
-		BytesFromZZ((u8*)&blkres, rep(res), sizeof(block));
-
-		std::cout << blkres << "\n";
-		std::cout << Y[0] << "\n";
+			/*ZZ_pX P1;
+			for (unsigned int i = 0; i <= degree; i++) {
+				SetCoeff(P1, i,P.rep[i]);
+			}
 
 
-		//test_interpolation_result_zp(P, x, y, long degree)
+			ZZ_p* y2 = new ZZ_p[degree + 1];
+
+			ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+			build_tree(p_tree, xx, degree * 2 + 1, 1, prime);
+
+			ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+			evaluate(P, p_tree, reminders, degree * 2 + 1, y2, 1, prime);
+
+			for (long i = 0; i< degree + 1; i++) {
+				if (y2[i] != yy[i]) {
+					cout << "Error! x = " << xx[i] << ", y = " << yy[i] << ", res = " << y2[i]<< endl;
+				}
+			}
+
+			cout << "Polynomialxx is interpolated correctly!" << endl;
 
 
+
+			ZZFromBytes(zz, (u8*)&X[0], sizeof(block));
+			ZZ_p tt= to_ZZ_p(zz);
+
+			ZZ_p res;
+			eval(res, P, tt);
+
+			block blkres;
+			BytesFromZZ((u8*)&blkres, rep(res), sizeof(block));
+
+			std::cout << blkres << "\n";
+			std::cout << Y[0] << "\n";*/
+
+
+			//test_interpolation_result_zp(P, x, y, long degree)
+
+		}
 	}
 
 
 	void Prty_PSI_impl()
 	{
 		setThreadName("Sender");
-		u64 setSize = 1 << 12, psiSecParam = 40, numThreads(1);
+		u64 setSize = 1 << 10, psiSecParam = 40, numThreads(1);
 
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 		PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
@@ -379,7 +411,7 @@ namespace tests_libOTe
 
 		auto thrd = std::thread([&]() {
 			recv.init(40, prng1, recvSet, recvChls);
-			recv.output(recvSet, recvChls);
+			
 			
 			//std::array<block, numSuperBlocks> tT,tU;
 			//prfOtRows(recvSet.data(), recvSet.size(), recv.mRowT, recv.mAesT);
@@ -390,17 +422,18 @@ namespace tests_libOTe
 			prfOtRow(recvSet[1], recv.mRowT[1], recv.mAesT);
 			prfOtRow(recvSet[1], recv.mRowU[1], recv.mAesU);
 
+			recv.output(recvSet, recvChls);
 
 		});
 
 		sender.init(40, prng0, sendSet, sendChls);
-		sender.output(sendSet, recvChls);
+		
 
 		//prfOtRows(sendSet.data(), sendSet.size(), sender.mRowQ, sender.mAesQ);
 		prfOtRow(sendSet[0], sender.mRowQ[0], sender.mAesQ);
 		prfOtRow(sendSet[1], sender.mRowQ[1], sender.mAesQ);
 
-		
+		sender.output(sendSet, sendChls);
 
 
 		thrd.join();

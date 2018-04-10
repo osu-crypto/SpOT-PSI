@@ -78,17 +78,20 @@ namespace osuCrypto
 		//send coff of poly dummy(x)*pRoot(x)+p1(x)
 		//if x*=xi =>pRoot(xi)=0 => get p1(x*)
 
-		NTL::GF2EX root_polynomial;
-		NTL::BuildFromRoots(root_polynomial, x);
+		if (degree > setX.size()-1)
+		{
+			NTL::GF2EX root_polynomial;
+			NTL::BuildFromRoots(root_polynomial, x);
 
 
-		NTL::GF2EX dummy_polynomial;
-		NTL::random(dummy_polynomial, degree - setX.size());
-		NTL::GF2EX d_polynomial;
-		polynomial = polynomial + dummy_polynomial*root_polynomial;
+			NTL::GF2EX dummy_polynomial;
+			NTL::random(dummy_polynomial, degree - setX.size()+1);
+			NTL::GF2EX d_polynomial;
+			polynomial = polynomial + dummy_polynomial*root_polynomial;
+		}
 
 		coeffs.resize(NTL::deg(polynomial) + 1);
-		for (int i = 0; i < coeffs.size(); i++) {
+		for (int i = 0; i <= NTL::deg(polynomial); i++) {
 			//get the coefficient polynomial
 			e = NTL::coeff(polynomial, i);
 			BlockFromGF2E(coeffs[i], e, mNumBytes);
