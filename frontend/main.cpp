@@ -936,7 +936,7 @@ int main(int argc, char** argv)
 	seft_balance();
 	return 0;*/
 
-	u64 setSize = 1 << 10, numThreads=2;
+	u64 setSize = 1 << 10, numThreads=1;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
 	std::vector<block> sendSet(setSize), recvSet(setSize);
