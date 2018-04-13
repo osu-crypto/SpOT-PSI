@@ -19,8 +19,8 @@ namespace osuCrypto
 		mPsiSecParam = psiSecParam;
 		mPrng.SetSeed(prng.get<block>());
 		mFieldSize = 512; // TODO
-		mNumBins = 1 << 4;
-
+		 mNumBins = inputs.size() / expBinsize;
+		 std::cout << "mNumBins "<< mNumBins << "\n";
 		std::vector<std::array<block, 2>> baseOtSend(128);
 		NaorPinkas baseOTs;
 		baseOTs.send(baseOtSend, mPrng, chls[0], 1);
@@ -67,11 +67,11 @@ namespace osuCrypto
 
 		//=====================Balaced Allocation=====================
 		SimpleIndex simple;
-		gTimer.reset();
-		gTimer.setTimePoint("start");
+		//gTimer.reset();
+		//gTimer.setTimePoint("start");
 		simple.init(inputs.size(),mNumBins, numDummies);
 		simple.insertItems(inputs);
-		gTimer.setTimePoint("balanced");
+		//gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;
 
 	/*	std::cout << IoStream::lock;
@@ -96,14 +96,17 @@ namespace osuCrypto
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
 
 				
+				std::vector<std::array<block, numSuperBlocks>> rowQ(curStepSize*simple.mMaxBinSize);
+				std::vector<u64> subIdxItems(curStepSize*simple.mMaxBinSize);
+
+
+				u64 iterSend = 0, iterRecv = 0;
+
+
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
-					u64 idxRow = 0;
-
-					std::vector<u64> subIdxItems(simple.mMaxBinSize);
-					std::vector<block> finalHashes(simple.mMaxBinSize);
-					std::vector<std::array<block, numSuperBlocks>> rowQ(simple.mMaxBinSize);
+					u64 cntRows = 0;
 
 					//=====================Compute OT row=====================
 					for (auto it = simple.mBins[bIdx].values.begin(); it != simple.mBins[bIdx].values.end(); ++it)
@@ -111,25 +114,83 @@ namespace osuCrypto
 						for (u64 idx = 0; idx < it->second.size(); idx++)
 						{
 							//std::cout << "\t" << inputs[it->second[idx]] << std::endl;
-							prfOtRow(inputs[it->second[idx]], rowQ[idxRow], mAesQ);
-							subIdxItems[idxRow] = it->second[idx];
-							idxRow++;
+							prfOtRow(inputs[it->second[idx]], rowQ[k*simple.mMaxBinSize + cntRows], mAesQ);
+							subIdxItems[k*simple.mMaxBinSize + cntRows] = it->second[idx];
+							cntRows++;
 						}
 					}
 
-					sendBuff.resize(curStepSize*simple.mMaxBinSize*hashMaskBytes);
-					
-					chl.recv(recvBuff); //receive Poly
-					if (recvBuff.size() != curStepSize*simple.mMaxBinSize*numSuperBlocks * sizeof(block));
+				}
+				
+				chl.recv(recvBuff); //receive Poly
+
+
+			/*		if (recvBuff.size() != curStepSize*simple.mMaxBinSize*numSuperBlocks * sizeof(block));
 					{
+						int aa = curStepSize*simple.mMaxBinSize*numSuperBlocks * sizeof(block);
+						std::cout << recvBuff.size() << "\t" <<aa << std::endl;
+
 						std::cout << "error @ " << (LOCATION) << std::endl;
 						throw std::runtime_error(LOCATION);
-					}
-					
-					//=====================Unpack=====================
+					}*/
 
+					//=====================Unpack=====================
+				for (u64 k = 0; k < curStepSize; ++k)
+				{
+					sendBuff.resize(curStepSize*simple.mMaxBinSize*hashMaskBytes);
+					u64 bIdx = i + k;
+					u64 realRows = simple.mBins[bIdx].cnt;
+					std::vector<block> finalHashes(simple.mMaxBinSize);
+
+#ifndef NTL_Threads_ON
+					std::cout << IoStream::lock;
+#endif // NTL_Threads_O
+					
+
+					u64 degree = simple.mMaxBinSize - 1;
+					std::vector<block> X(realRows), R(realRows), coeffs(simple.mMaxBinSize);
+					block rcvBlk;
+					NTL::GF2E e;
+					NTL::vec_GF2E vecX;
+
+					for (u64 idx = 0; idx < realRows; ++idx)
+					{
+						poly.GF2EFromBlock(e, inputs[subIdxItems[k*simple.mMaxBinSize + idx]], poly.mNumBytes);
+						vecX.append(e);
+					}
+
+					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+					{
+						for (int c = 0; c < coeffs.size(); c++) {
+							memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, sizeof(block));
+							iterSend += sizeof(block);
+						}
+						poly.evalPolynomial(coeffs, vecX, R);
+
+						for (int idx = 0; idx < realRows; idx++) {
+							rcvBlk = rowQ[k*simple.mMaxBinSize + idx][j] ^ (R[idx] & choiceBlocks[j]); //Q+s*P
+
+							finalHashes[idx] = simple.mAesHasher.ecbEncBlock(rcvBlk) ^ finalHashes[idx]; //compute H(Q+s*P)=xor of all slices
+						}
+
+						for (int idx = realRows; idx < simple.mMaxBinSize; idx++) {
+							finalHashes[idx] = mPrng.get<block>(); //dummy
+						}
+
+					}
+
+					for (int idx = 0; idx < finalHashes.size(); idx++) {
+						memcpy(sendBuff.data() + iterRecv, (u8*)&finalHashes[idx], hashMaskBytes);
+						iterRecv += hashMaskBytes;
+					}
+#ifndef NTL_Threads_ON
+					std::cout << IoStream::unlock;
+#endif // NTL_Threads_O
+
+				}
 
 #if 0
+
 					u64 degree = rowQ.size() - 1;
 					ZZ_p::init(ZZ(mPrime));
 					ZZ zz;
@@ -174,8 +235,8 @@ namespace osuCrypto
 						memcpy(sendBuff.data() + (k*simple.mMaxBinSize+idx)*hashMaskBytes, (u8*)&finalHashes[idx], hashMaskBytes);
 					}
 #endif
-				}
-				//chl.asyncSend(std::move(sendBuff)); //send H(Q+s*P)
+				
+				chl.asyncSend(std::move(sendBuff)); //send H(Q+s*P)
 
 			}
 		};
@@ -192,7 +253,6 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
-		gTimer.setTimePoint("Compute OT");
 	}
 
 }

@@ -4,7 +4,33 @@ First clone and build libOTe which should share the same parent directory. Then 
 
 ### Linux
 
+```
+git clone --recursive git@github.com:nitrieu/SpOT-PSI_impl.git
+```
 
-libOTe, should share the same parent directory.
+###### build libOTe
+```
+cd SpOT-PSI_impl/libOTe/cryptoTools/thirdparty/linux
+bash all.get
+cd ../../..
+cmake  -G "Unix Makefiles"
+make
+```
 
-ntl should build in `prtyPSI/thirdparty/linux/ntl`
+###### build extra ntl library 
+```
+cd SpOT-PSI_impl/thirdparty/linux/
+bash ntl.get
+```
+
+###### compile
+```
+cd SpOT-PSI_impl
+cmake .
+make 
+```
+###### run (folder SpOT-PSI_impl)
+```
+./bin/frontend.exe -r 0 & ./bin/frontend.exe -r 1
+```
+

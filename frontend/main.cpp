@@ -507,7 +507,7 @@ void Receiver(u64 setSize, span<block> inputs,u64 numThreads=1)
 		std::cout << recv.mBaseOTSend[0][1] << "\n";*/
 
 	recv.output(inputs, recvChls);
-	gTimer.setTimePoint("finish");
+	//gTimer.setTimePoint("finish");
 	std::cout << gTimer << std::endl;
 
 
@@ -929,14 +929,14 @@ int main(int argc, char** argv)
 	/*Poly_Test_Impl();
 	return 0;*/
 
-	Hashing_Test_Impl();
+	/*Hashing_Test_Impl();
 	return 0;
 
 
 	seft_balance();
-	return 0;
+	return 0;*/
 
-	u64 setSize = 1 << 20;
+	u64 setSize = 1 << 10, numThreads=2;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
 	std::vector<block> sendSet(setSize), recvSet(setSize);
@@ -965,19 +965,19 @@ int main(int argc, char** argv)
 	if (argc == 2 && argv[1][0] == '-' && argv[1][1] == 't') {
 		
 		std::thread thrd = std::thread([&]() {
-			Sender(setSize,sendSet);
+			Sender(setSize,sendSet, numThreads);
 		});
 
-		Receiver(setSize, recvSet);
+		Receiver(setSize, recvSet, numThreads);
 
 		thrd.join();
 
 	}
 	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
-		Sender(setSize, sendSet);
+		Sender(setSize, sendSet, numThreads);
 	}
 	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
-		Receiver(setSize, sendSet);
+		Receiver(setSize, sendSet, numThreads);
 	}
 	else {
 		usage(argv[0]);

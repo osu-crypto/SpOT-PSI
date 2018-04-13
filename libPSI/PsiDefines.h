@@ -12,10 +12,10 @@ using namespace NTL;
 
 namespace osuCrypto
 {
-	static const u64 stepSize(8192);
+	static const u64 stepSize(1<<8);
 	static const u8 numSuperBlocks(4); //wide of T (or field size)
 	static const u64 numDummies(2);
-	static const u64 numBins(1 << 4);
+	static const u64 expBinsize(1 << 6);
 	static std::vector<block> mOneBlocks(128);
 	static const u64 primeLong(128);
 

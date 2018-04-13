@@ -120,4 +120,42 @@ namespace osuCrypto
 		BlockFromGF2E(y, e, mNumBytes); //convert to block 
 	}
 
+	void polyNTL::evalPolynomial(std::vector<block>& coeffs, std::vector<block>& setX, std::vector<block>& setY)
+	{
+		NTL::GF2EX res_polynomial;
+		NTL::GF2E e;
+		//std::cout << coeffs.size() << std::endl;
+		for (u64 i = 0; i < coeffs.size(); ++i)
+		{
+			GF2EFromBlock(e, coeffs[i], mNumBytes);
+			NTL::SetCoeff(res_polynomial, i, e); //build res_polynomial
+		}
+
+		setY.resize(setX.size());
+		for (u64 i = 0; i < setY.size(); ++i)
+		{
+			GF2EFromBlock(e, setX[i], mNumBytes);
+			e = NTL::eval(res_polynomial, e); //get y=f(x) in GF2E
+			BlockFromGF2E(setY[i], e, mNumBytes); //convert to block 
+		}
+	}
+
+	void polyNTL::evalPolynomial(std::vector<block>& coeffs, NTL::vec_GF2E& vecX, std::vector<block>& setY)
+	{
+		NTL::GF2EX res_polynomial;
+		NTL::GF2E e;
+		//std::cout << coeffs.size() << std::endl;
+		for (u64 i = 0; i < coeffs.size(); ++i)
+		{
+			GF2EFromBlock(e, coeffs[i], mNumBytes);
+			NTL::SetCoeff(res_polynomial, i, e); //build res_polynomial
+		}
+
+		for (u64 i = 0; i < setY.size(); ++i)
+		{
+			e = NTL::eval(res_polynomial, vecX.at(i)); //get y=f(x) in GF2E
+			BlockFromGF2E(setY[i], e, mNumBytes); //convert to block 
+		}
+	}
+
 }

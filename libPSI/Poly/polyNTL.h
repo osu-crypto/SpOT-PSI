@@ -36,6 +36,8 @@ public:
 	void getBlkCoefficients(NTL::vec_GF2E& vecX, NTL::vec_GF2E& vecY, std::vector<block>& coeffs);
 	void getBlkCoefficients(u64 degree, std::vector<block>& setX, std::vector<block>& setY, std::vector<block>& coeffs);
 	void evalPolynomial(std::vector<block>& coeffs, block& x, block& y);
+	void evalPolynomial(std::vector<block>& coeffs, std::vector<block>& setX, std::vector<block>& setY);
+	void evalPolynomial(std::vector<block>& coeffs, NTL::vec_GF2E& vecX, std::vector<block>& setY);
 
 };
 
