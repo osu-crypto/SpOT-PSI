@@ -122,7 +122,7 @@ namespace tests_libOTe
     void Hashing_Test_Impl()
 	{
 		setThreadName("Sender");
-		u64 setSize = 1<<20, psiSecParam = 40,  numThreads(2);
+		u64 setSize = 1<<10, psiSecParam = 40,  numThreads(2);
 
 		PRNG prng(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
@@ -134,10 +134,11 @@ namespace tests_libOTe
 		SimpleIndex simple;
 		gTimer.reset();
 		gTimer.setTimePoint("start");
-		simple.init(setSize,1<<10,1);
+		simple.init(setSize,20,1);
 		simple.insertItems(set);
 		gTimer.setTimePoint("end");
 		std::cout << gTimer << std::endl;
+		simple.check();
 		simple.print(set);
 
 	}

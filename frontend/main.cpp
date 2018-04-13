@@ -876,10 +876,12 @@ void Hashing_Test_Impl()
 	SimpleIndex simple;
 	gTimer.reset();
 	gTimer.setTimePoint("start");
-	simple.init(setSize,1 << 14, 2);
+	simple.init(setSize,40, 1);
 	simple.insertItems(set);
 	gTimer.setTimePoint("end");
 	std::cout << gTimer << std::endl;
+	simple.check();
+
 //	simple.print(set);
 
 }
@@ -930,13 +932,13 @@ int main(int argc, char** argv)
 	return 0;*/
 
 	/*Hashing_Test_Impl();
-	return 0;
-
-
-	seft_balance();
 	return 0;*/
 
-	u64 setSize = 1 << 10, numThreads=1;
+
+	/*seft_balance();
+	return 0;*/
+
+	u64 setSize = 1 << 20, numThreads=1;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	PRNG prng1(_mm_set_epi32(4253233465, 334565, 0, 235));
 	std::vector<block> sendSet(setSize), recvSet(setSize);

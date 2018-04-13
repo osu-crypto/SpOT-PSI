@@ -37,18 +37,26 @@ namespace osuCrypto
         std::cout << std::endl;
     }
 
-    void SimpleIndex::init(u64 inputSize, u64 numBins, u64 numDummies, u64 statSecParam)
+    void SimpleIndex::init(u64 inputSize, u64 maxBinSize, u64 numDummies, u64 statSecParam)
     {
 		numIters = 0;
-		mNumBins = numBins;
+		mMaxBinSize = maxBinSize;
+		mNumBins = 1+inputSize/(maxBinSize- numDummies);
 		mNumDummies = numDummies;
-		mMaxBinSize = mNumDummies + inputSize / mNumBins;
+		//mMaxBinSize = mNumDummies + inputSize / mNumBins;
 		mHashSeed = _mm_set_epi32(4253465, 3434565, 234435, 23987025); //hardcode hash
 		mAesHasher.setKey(mHashSeed);
 		mBins.resize(mNumBins);
     }
 
-
+	void SimpleIndex::check()
+	{
+		for (u64 idxBin = 0; idxBin < mNumBins; ++idxBin)
+		{
+			if (mBins[idxBin].cnt > mMaxBinSize)
+				std::cout << idxBin << "\t cnt:" << mBins[idxBin].cnt << "\t" << "mMaxBinSize " << mMaxBinSize << "\n";
+		}
+	}
     void SimpleIndex::insertItems(span<block> items)
     {
 		u64 inputSize = items.size();
@@ -89,7 +97,7 @@ namespace osuCrypto
 					mBins[idxBin].lightBins.emplace_back(it->first); 
 			}
 
-			if (mBins[idxBin].cnt >= mMaxBinSize)
+			if (mBins[idxBin].cnt > mMaxBinSize)
 				heavyBins.emplace_back(idxBin);
 		}
 	//	std::cout << "heavyBins.size() " << heavyBins.size() << "\n";
@@ -99,20 +107,24 @@ namespace osuCrypto
 		//=====================Self-Balacing-Step==========================
 
 		
-		bool isError = false;
 		block x;
 
-		while (heavyBins.size() > 0 && !isError)
+		while (heavyBins.size() > 0 )
 		{
-			//std::cout << numIters << "\t " << heavyBins.size() << "\n";
+			//std::cout << numIters << "\t " << heavyBins.size() << "\t";
 
 
 			u64 b1 = heavyBins[rand() % heavyBins.size()]; //choose random bin that is heavy
 		
+			//std::cout << mBins[b1].cnt << "\t";
+
+
 			if (mBins[b1].lightBins.size() > 0)
 			{
 				u64 i2 = rand() % mBins[b1].lightBins.size(); //choose random alter bin, that is light, to balance
 				u64 b2 = mBins[b1].lightBins[i2];
+				//std::cout << mBins[b2].cnt;
+
 
 				if (mBins[b2].cnt < mBins[b1].cnt) //if true, do the balance (double check in some unexpected cases)
 				{
@@ -120,7 +132,7 @@ namespace osuCrypto
 
 					u64 rB = rand() % 2;
 
-					//	if (rB == 1 || mBins[b2].cnt + 1 != mBins[b1].cnt) //if not tie
+					if (rB == 1 || mBins[b2].cnt + 1 != mBins[b1].cnt) //if not tie
 					{
 
 						if (curSubBin->second.size() == 0)
@@ -157,7 +169,7 @@ namespace osuCrypto
 						mBins[b2].cnt++;
 
 						//b2 may become an heavy bin
-						if (mBins[b2].cnt >= mMaxBinSize)
+						if (mBins[b2].cnt > mMaxBinSize)
 						{
 							heavyBins.emplace_back(b2);
 							mBins[b1].lightBins.erase(mBins[b1].lightBins.begin() + i2);
@@ -174,8 +186,11 @@ namespace osuCrypto
 				////	isError = true;
 				//}
 			}
+			//std::cout << "\n";
+
 		}
 
+		//check();
 		
 }
 

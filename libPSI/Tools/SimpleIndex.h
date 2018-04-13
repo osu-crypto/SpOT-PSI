@@ -24,8 +24,9 @@ namespace osuCrypto
         block mHashSeed;
 		AES mAesHasher;
         void print(span<block> items) ;
-		void init(u64 inputSize, u64 numBins, u64 numDummies, u64 statSecParam = 40);
+		void init(u64 inputSize, u64 maxBinSize, u64 numDummies, u64 statSecParam = 40);
         void insertItems(span<block> items);
+		void check();
     };
 
 }

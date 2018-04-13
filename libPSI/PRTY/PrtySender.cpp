@@ -69,7 +69,7 @@ namespace osuCrypto
 		SimpleIndex simple;
 		//gTimer.reset();
 		//gTimer.setTimePoint("start");
-		simple.init(inputs.size(),mNumBins, numDummies);
+		simple.init(inputs.size(), maxBinSize, numDummies);
 		simple.insertItems(inputs);
 		//gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;

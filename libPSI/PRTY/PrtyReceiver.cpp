@@ -69,7 +69,7 @@ namespace osuCrypto
 		//=====================Balaced Allocation=====================
 		SimpleIndex simple;
 		//gTimer.reset();
-		simple.init(inputs.size(),mNumBins, numDummies);
+		simple.init(inputs.size(), maxBinSize, numDummies);
 		simple.insertItems(inputs);
 		gTimer.setTimePoint("binning");
 		//std::cout << gTimer << std::endl;
