@@ -30,6 +30,7 @@
 
 #include "PRTY/PrtySender.h"
 #include "PRTY/PrtyReceiver.h"
+#include "Tools/BalancedIndex.h"
 #include "Tools/SimpleIndex.h"
 
 #include "Common.h"
@@ -131,14 +132,23 @@ namespace tests_libOTe
 		for (u64 i = 0; i < set.size(); ++i)
 			set[i] = prng.get<block>();
 
+		BalancedIndex balance;
+		gTimer.reset();
+		gTimer.setTimePoint("start");
+		balance.init(setSize,40,1);
+		balance.insertItems(set);
+		gTimer.setTimePoint("end");
+		std::cout << gTimer << std::endl;
+		balance.check();
+		balance.print(set);
+
 		SimpleIndex simple;
 		gTimer.reset();
 		gTimer.setTimePoint("start");
-		simple.init(setSize,20,1);
+		simple.init(setSize, 40, 1);
 		simple.insertItems(set);
 		gTimer.setTimePoint("end");
 		std::cout << gTimer << std::endl;
-		simple.check();
 		simple.print(set);
 
 	}
@@ -441,7 +451,7 @@ namespace tests_libOTe
 
 
 		//check correct OT
-		for (int i = 0; i < 2; ++i) {
+		for (int i = 0; i < 0; ++i) {
 
 			for (int j = 0; j < numSuperBlocks; ++j) {
 				std::cout << sender.mRowQ[i][j] << "\n";
@@ -454,6 +464,20 @@ namespace tests_libOTe
 			}
 		}
 
+
+		//check More
+
+			for (int j = 0; j < numSuperBlocks; ++j) {
+				std::cout << sender.mRowQforDebug[j] << "\t";
+				std::cout << recv.mRowTforDebug[j] << "\t";
+				std::cout << recv.mRowUforDebug[j]<< "\n";
+				block P;
+				P = recv.mRowTforDebug[j] ^ recv.mRowUforDebug[j];
+				auto choiceBlocks = sender.mOtChoices.getSpan<block>();
+
+				block q=(P&choiceBlocks[j]) ^ sender.mRowQforDebug[j];
+				std::cout << q << "\n";
+			}
 
 
 		for (u64 i = 0; i < numThreads; ++i)

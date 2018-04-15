@@ -5,7 +5,7 @@
 #include <cryptoTools/Crypto/PRNG.h>
 #include <cryptoTools/Crypto/Commit.h>
 #include <cryptoTools/Network/Channel.h>
-#include "Tools/SimpleIndex.h"
+#include "Tools/BalancedIndex.h"
 #include "libOTe/TwoChooseOne/IknpOtExtSender.h"
 #include "Poly/polyFFT.h"
 
@@ -20,7 +20,6 @@ namespace osuCrypto
 		mPsiSecParam = psiSecParam;
 		mPrng.SetSeed(prng.get<block>());
 		mFieldSize = 512; // TODO
-		mNumBins = inputs.size()/ expBinsize;
 
 		std::vector<block> baseOtRecv(128);
 		BitVector baseOtChoices(128);
@@ -57,9 +56,11 @@ namespace osuCrypto
 		std::cout << IoStream::unlock;
 #endif // NTL_Threads_ON
 
+
 	}
 	void PrtyReceiver::output(span<block> inputs, span<Channel> chls)
 	{
+#if 1
 		u64 numThreads(chls.size());
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
@@ -67,40 +68,51 @@ namespace osuCrypto
 		u64 hashMaskBytes = (40 + 2 * log2(inputs.size()) + 7) / 8;
 
 		//=====================Balaced Allocation=====================
-		SimpleIndex simple;
 		//gTimer.reset();
-		simple.init(inputs.size(), maxBinSize, numDummies);
-		simple.insertItems(inputs);
+		BalancedIndex mBalance;
+		mBalance.init(inputs.size(), recvMaxBinSize, recvNumDummies);
+		mBalance.insertItems(inputs);
 		gTimer.setTimePoint("binning");
 		//std::cout << gTimer << std::endl;
 		
 		/*std::cout << IoStream::lock;
-		simple.print(inputs);
+		mBalance.print(inputs);
 		std::cout << IoStream::unlock;*/
 
+		std::array<std::unordered_map<u64, std::pair<block, u64>>, 2> localMasks; //for hash 0 and 1
+		localMasks[0].reserve(inputs.size());//for hash 0
+		localMasks[1].reserve(inputs.size());//for hash 1
+
+		bool changeInputForDebug = true;
 
 		//=====================Poly=====================
 		auto routine = [&](u64 t)
 		{
 			auto& chl = chls[t];
-			u64 binStartIdx = simple.mNumBins * t / numThreads;
-			u64 tempBinEndIdx = (simple.mNumBins * (t + 1) / numThreads);
-			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
+			u64 binStartIdx = mBalance.mNumBins * t / numThreads;
+			u64 tempBinEndIdx = (mBalance.mNumBins * (t + 1) / numThreads);
+			u64 binEndIdx = std::min(tempBinEndIdx, mBalance.mNumBins);
 			block temp;
 
+#ifndef NTL_Threads_ON
+			std::cout << IoStream::lock;
+#endif
 			polyNTL poly;
 			poly.NtlPolyInit(128 / 8);
+
+#ifndef NTL_Threads_ON
+			std::cout << IoStream::unlock;
+#endif
 
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
-				
-				sendBuff.resize(curStepSize*simple.mMaxBinSize*numSuperBlocks*sizeof(block));
-				std::unordered_map<u64, block> localMasks;
-				localMasks.reserve(curStepSize*simple.mMaxBinSize);
 
-				std::vector<std::array<block, numSuperBlocks>> rowT(curStepSize*simple.mMaxBinSize);
-				std::vector<u64> subIdxItems(curStepSize*simple.mMaxBinSize);
+				std::vector<u8> sendBuff;
+				sendBuff.resize(curStepSize*mBalance.mMaxBinSize*numSuperBlocks * sizeof(block));
+
+				std::vector<std::array<block, numSuperBlocks>> rowT(curStepSize*mBalance.mMaxBinSize);
+				std::vector<item> subIdxItems(curStepSize*mBalance.mMaxBinSize);
 
 				u64 iterSend = 0;
 
@@ -108,51 +120,85 @@ namespace osuCrypto
 				{
 					u64 bIdx = i + k;
 
-					std::vector<std::array<block, numSuperBlocks>> rowU(simple.mMaxBinSize);
-					std::vector<std::array<block, numSuperBlocks>> rowR(simple.mMaxBinSize);
+					std::vector<std::array<block, numSuperBlocks>> rowU(mBalance.mMaxBinSize);
+					std::vector<std::array<block, numSuperBlocks>> rowR(mBalance.mMaxBinSize);
 					u64 cntRows = 0;
 					//=====================Compute OT row=====================
-					for (auto it = simple.mBins[bIdx].values.begin(); it != simple.mBins[bIdx].values.end(); ++it)
+					for (auto it = mBalance.mBins[bIdx].values.begin(); it != mBalance.mBins[bIdx].values.end(); ++it)
 					{
 						for (u64 idx = 0; idx < it->second.size(); idx++)
 						{
-							//std::cout << "\t" << inputs[it->second[idx]] << std::endl;
-							prfOtRow(inputs[it->second[idx]], rowT[k*simple.mMaxBinSize+cntRows], mAesT);
-							prfOtRow(inputs[it->second[idx]], rowU[cntRows], mAesU);
-							subIdxItems[k*simple.mMaxBinSize + cntRows] = it->second[idx];
+							if (changeInputForDebug && bIdx==2)
+							{
+								inputs[it->second[idx].mIdx] = OneBlock;
+								changeInputForDebug = false;
+								mIdxForDebug = it->second[idx].mIdx;
+								mIdxRowTForDebug=idx; mKIdxForDebug = k;
+								//std::cout << mIdxForDebug << "\t";
+							}
+
+							prfOtRow(inputs[it->second[idx].mIdx], rowT[k*mBalance.mMaxBinSize + cntRows], mAesT);
+							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU);
+							subIdxItems[k*mBalance.mMaxBinSize + cntRows] = it->second[idx];
+
+
+						/*	std::cout << IoStream::lock;
+							std::cout << idx << "\t " << inputs[it->second[idx].mIdx]<<
+								"\t"<<rowT[k*mBalance.mMaxBinSize + cntRows][0] <<
+								"\t" << rowU[cntRows][0] << "\n";
+							std::cout << IoStream::unlock;*/
+
+
+							if (it->second[idx].mIdx == mIdxForDebug)
+							{
+								for (int j = 0; j < numSuperBlocks; ++j) {
+									mRowTforDebug[j] = rowT[k*mBalance.mMaxBinSize + cntRows][j];
+									mRowUforDebug[j] = rowU[cntRows][j];
+
+									/*	block tempR = mRowTforDebug[j] ^ mRowUforDebug[j];
+									std::cout << mRowTforDebug[j] << "\t"
+											 << mRowUforDebug[j] << "\t"
+											<< tempR <<" ========\n";*/
+								}
+							}
+
 							cntRows++;
+
 						}
 					}
 
-					//std::cout << simple.mBins[bIdx].cnt << "\t" << cntRows << "\n";
+					//std::cout << mBalance.mBins[bIdx].cnt << "\t" << cntRows << "\n";
 					//comput R=T+U
 					for (u64 idx = 0; idx < cntRows; ++idx)
 						for (u64 j = 0; j < numSuperBlocks; ++j)
-							rowR[idx][j] = rowT[k*simple.mMaxBinSize + idx][j] ^ rowU[idx][j];
+						{
+							rowR[idx][j] = rowT[k*mBalance.mMaxBinSize + idx][j] ^ rowU[idx][j];
+							
 
-					
+						}
+
 					//=====================Pack=====================
 #ifndef NTL_Threads_ON
 					std::cout << IoStream::lock;
 #endif // NTL_Threads_O
 
-					u64 degree = simple.mMaxBinSize - 1;
+					u64 degree = mBalance.mMaxBinSize - 1;
 					std::vector<block> X(cntRows), Y(cntRows), coeffs;
 
 					for (u64 idx = 0; idx < cntRows; ++idx)
-						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*simple.mMaxBinSize + idx]], sizeof(block));
+						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx].mIdx], sizeof(block));
 
 					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 					{
 						for (u64 idx = 0; idx < cntRows; ++idx)
 							memcpy((u8*)&Y[idx], (u8*)&rowR[idx][j], sizeof(block));
 
-						poly.getBlkCoefficients(degree,X , Y, coeffs);  //pad with dummy here
+						poly.getBlkCoefficients(degree, X, Y, coeffs);  //pad with dummy here
 
-						
-						for (int c = 0; c<coeffs.size(); c++) {
-							memcpy(sendBuff.data() + iterSend , (u8*)&coeffs[c], sizeof(block));
-							iterSend+= sizeof(block);
+
+						for (int c = 0; c < coeffs.size(); c++) {
+							memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], sizeof(block));
+							iterSend += sizeof(block);
 						}
 
 					}
@@ -176,7 +222,7 @@ namespace osuCrypto
 
 					for (u64 idx = 0; idx < cntRows; ++idx)
 					{
-						ZZFromBytes(zz, (u8*)&inputs[subIdxItems[k*simple.mMaxBinSize + idx]], sizeof(block));
+						ZZFromBytes(zz, (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx]], sizeof(block));
 						zzX[idx] = to_ZZ_p(zz);
 					}
 
@@ -195,7 +241,7 @@ namespace osuCrypto
 
 						iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, 1, mPrime);
 
-						for (int c = 0; c<degree; c++) {
+						for (int c = 0; c < degree; c++) {
 							BytesFromZZ(sendBuff.data() + (k*j*rowR.size() + c) * sizeof(block), rep(Polynomial.rep[c]), sizeof(block));
 						}
 					}
@@ -210,48 +256,26 @@ namespace osuCrypto
 				block cipher;
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
-					u64 realRows = simple.mBins[i + k].cnt;
+					u64 realRows = mBalance.mBins[i + k].cnt;
 
 					for (u64 idx = 0; idx < realRows; ++idx)
 					{
+						item it = subIdxItems[k*mBalance.mMaxBinSize + idx];
+
+						cipher = ZeroBlock;
 						for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-							cipher = simple.mAesHasher.ecbEncBlock(rowT[k*simple.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
-					
-						localMasks.emplace(*(u64*)&cipher, cipher);
-					}
-				}
+							cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k*mBalance.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
 
-				chl.recv(recvBuff); //receive Hash
-				if (recvBuff.size() != curStepSize*simple.mMaxBinSize*hashMaskBytes)
-				{
-					std::cout << "error @ " << (LOCATION) << std::endl;
-					throw std::runtime_error(LOCATION);
-				}
 
-				auto theirMasks = recvBuff.data();
-
-				for (u64 k = 0; k < curStepSize; ++k)
-				{
-					for (u64 idx = 0; idx < simple.mMaxBinSize; ++idx)
-					{
-						auto& msk = *(u64*)(theirMasks);
-
-						// check 64 first bits
-						auto match = localMasks.find(msk);
-
-						//if match, check for whole bits
-						if (match != localMasks.end())
+						if (it.mIdx == mIdxForDebug)
 						{
-							if (memcmp(theirMasks, &match->second, hashMaskBytes) == 0) // check full mask
-							{
-								mIntersection.push_back(inputs[subIdxItems[k*simple.mMaxBinSize + idx]]);
-								std::cout << "#id: " << subIdxItems[k*simple.mMaxBinSize + idx] << std::endl;
-							}
+							std::cout << "recv mask " << cipher << "\n";
 						}
-						theirMasks += hashMaskBytes;
+						//std::cout << IoStream::lock;
+						localMasks[it.mHashIdx].emplace(*(u64*)&cipher, std::pair<block, u64>(cipher, it.mIdx));
+						//std::cout << IoStream::unlock;
 					}
 				}
-#endif
 
 			}
 
@@ -269,12 +293,80 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
+		gTimer.setTimePoint("poly");
+
+	
+//#####################Receive Mask #####################
+			
+
+		auto receiveMask = [&](u64 t)
+		{
+			auto& chl = chls[t]; //parallel along with inputs
+			u64 startIdx = inputs.size() * t / numThreads;
+			u64 tempEndIdx = (inputs.size() * (t + 1) / numThreads);
+			u64 endIdx = std::min(tempEndIdx, (u64)inputs.size());
+
+
+			for (u64 i = startIdx; i < endIdx; i += stepSize)
+			{
+				auto curStepSize = std::min(stepSize, endIdx - i);
+				std::array<std::vector<u8>, 2> recvBuffs;
+
+
+				//receive the sender's marks, we have 2 buffs that corresponding to the mask of elements used hash index 0,1
+				for (u64 hIdx = 0; hIdx < 2; hIdx++)
+				{
+					chl.recv(recvBuffs[hIdx]); //receive Hash
+					/*if (recvBuffs[hIdx].size() != curStepSize*hashMaskBytes)
+					{
+						std::cout << "error @ " << (LOCATION) << std::endl;
+						throw std::runtime_error(LOCATION);
+					}*/
+
+					auto theirMasks = recvBuffs[hIdx].data();
+
+					for (u64 k = 0; k < curStepSize; ++k)
+					{
+						auto& msk = *(u64*)(theirMasks);
+
+							// check 64 first bits
+							auto match = localMasks[hIdx].find(msk);
+
+							//if match, check for whole bits
+							if (match != localMasks[hIdx].end())
+							{
+								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
+								{
+									mIntersection.push_back(match->second.second);
+									/*std::cout << "#id: " << match->second.second  << 
+										"\t" << inputs[match->second.second]<< std::endl;*/
+								}
+							}
+							theirMasks += hashMaskBytes;
+						}
+					}
+#endif
+
+				
+			
+			}
+		
+		};
+
+		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		{
+			thrds[i] = std::thread([=] {
+				receiveMask(i);
+			});
+		}
+
+		for (auto& thrd : thrds)
+			thrd.join();
+		
 		gTimer.setTimePoint("End");
 
 
-
-
 	//	std::cout << "Outputs.size() " <<Outputs.size() << std::endl;
-
+#endif
 	}
 }

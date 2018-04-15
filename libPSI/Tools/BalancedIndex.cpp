@@ -1,4 +1,4 @@
-#include "SimpleIndex.h"
+#include "BalancedIndex.h"
 #include "cryptoTools/Crypto/sha1.h"
 #include "cryptoTools/Crypto/PRNG.h"
 #include <random>
@@ -12,21 +12,21 @@ namespace osuCrypto
 {
 
 
-    void SimpleIndex::print(span<block> items)
+    void BalancedIndex::print(span<block> items)
     {
 		std::cout << "numIters=" << numIters << std::endl;
 		std::cout << "mNumDummies=" << mNumDummies << std::endl;
 		std::cout << "mNumBins=" << mNumBins << std::endl;
         for (u64 i = 0; i < mBins.size(); ++i)
         {
-            std::cout << "Bin #" << i <<  " contains " << mBins[i].cnt << " elements" << std::endl;
+            std::cout << "BBin #" << i <<  " contains " << mBins[i].cnt << " elements" << std::endl;
 
 			for (auto it = mBins[i].values.begin(); it != mBins[i].values.end(); ++it)//for each bin, list all alter light bins
 			{
 				for (u64 j = 0; j < it->second.size(); j++)
 				{
 					//std::cout << "\t" << it->second[j] << "\t" << items[it->second[j]] << std::endl;
-					std::cout << "\t" << items[it->second[j]] << std::endl;
+					std::cout << "\t" << items[it->second[j].mIdx] <<"\t" << it->second[j].mHashIdx << std::endl;
 
 				}
 			}
@@ -37,7 +37,7 @@ namespace osuCrypto
         std::cout << std::endl;
     }
 
-    void SimpleIndex::init(u64 inputSize, u64 maxBinSize, u64 numDummies, u64 statSecParam)
+    void BalancedIndex::init(u64 inputSize, u64 maxBinSize, u64 numDummies, u64 statSecParam)
     {
 		numIters = 0;
 		mMaxBinSize = maxBinSize;
@@ -49,7 +49,7 @@ namespace osuCrypto
 		mBins.resize(mNumBins);
     }
 
-	void SimpleIndex::check()
+	void BalancedIndex::check()
 	{
 		for (u64 idxBin = 0; idxBin < mNumBins; ++idxBin)
 		{
@@ -57,7 +57,7 @@ namespace osuCrypto
 				std::cout << idxBin << "\t cnt:" << mBins[idxBin].cnt << "\t" << "mMaxBinSize " << mMaxBinSize << "\n";
 		}
 	}
-    void SimpleIndex::insertItems(span<block> items)
+    void BalancedIndex::insertItems(span<block> items)
     {
 		u64 inputSize = items.size();
 		std::vector<u64> heavyBins;
@@ -73,18 +73,29 @@ namespace osuCrypto
 			b1 = _mm_extract_epi64(cipher, 0) % mNumBins; //1st 64 bits for finding bin location
 			b2 = _mm_extract_epi64(cipher, 1) % mNumBins; //2nd 64 bits for finding alter bin location
 
-			if (mBins[b1].cnt> mBins[b2].cnt)//assume that b1 is lightest, if not, swap b1 <-> b2
-				std::swap(b1, b2);
+			if (mBins[b1].cnt < mBins[b2].cnt)
+			{
+				auto iterB2 = mBins[b1].values.find(b2); //find alter b2 in BIN b1
 
-			
-			auto iterB2 = mBins[b1].values.find(b2); 
+				if (iterB2 != mBins[b1].values.end())  //if bins[b1] has b2 as unordered_map<b2,...>, insert index of this item
+					iterB2->second.push_back({ 0,idxItem });
+				else
+					mBins[b1].values.emplace(std::make_pair(b2, std::vector<item>{ {0,idxItem}})); //if not, insert new map
 
-			if (iterB2 != mBins[b1].values.end())  //if bins[b1] has b2 as unordered_map<b2,...>, insert index of this item
-				iterB2->second.emplace_back(idxItem);
+				mBins[b1].cnt++;
+			}
 			else
-				mBins[b1].values.emplace(std::make_pair(b2, std::vector<u64>{idxItem})); //if not, insert new map
+			{
+				auto iterB1 = mBins[b2].values.find(b1); //find alter b2 in BIN b1
 
-			mBins[b1].cnt++; 
+				if (iterB1 != mBins[b2].values.end())  //if bins[b1] has b2 as unordered_map<b2,...>, insert index of this item
+					iterB1->second.push_back({ 1,idxItem });
+				else
+					mBins[b2].values.emplace(std::make_pair(b1, std::vector<item>{ {1, idxItem}})); //if not, insert new map
+
+				mBins[b2].cnt++;
+			}
+		
 		}
 
 
@@ -105,9 +116,6 @@ namespace osuCrypto
 
 
 		//=====================Self-Balacing-Step==========================
-
-		
-		block x;
 
 		while (heavyBins.size() > 0 )
 		{
@@ -141,7 +149,7 @@ namespace osuCrypto
 						u64 idxBalanced = rand() % curSubBin->second.size(); //choose random item of bin b1 that can move to b2
 
 						//Remove item
-						u64 idxBalancedItem = curSubBin->second[idxBalanced];
+						item idxBalancedItem = curSubBin->second[idxBalanced];
 						curSubBin->second.erase(curSubBin->second.begin() + idxBalanced); //remove that item from b1
 						mBins[b1].cnt--;
 
@@ -162,7 +170,7 @@ namespace osuCrypto
 						}
 						else
 						{
-							mBins[b2].values.emplace(std::make_pair(b1, std::vector<u64>{idxBalancedItem}));
+							mBins[b2].values.emplace(std::make_pair(b1, std::vector<item>{idxBalancedItem}));
 							mBins[b2].lightBins.emplace_back(b1);
 						}
 
@@ -178,18 +186,9 @@ namespace osuCrypto
 
 					numIters++;
 				}
-				//else {
-				//	std::cout <<" ====================" << "\n";
-
-				//	std::cout << b1 << "\t" << mBins[b1].cnt << "\n";
-				//	std::cout << b2 << "\t" << mBins[b2].cnt << "\n";
-				////	isError = true;
-				//}
 			}
 			//std::cout << "\n";
-
 		}
-
 		//check();
 		
 }

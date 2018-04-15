@@ -1,5 +1,6 @@
 #pragma once
 #include <cryptoTools/Common/Defines.h>
+#include <cryptoTools/Common/Log.h>
 #define NTL_Threads
 #define  DEBUG
 #include "PsiDefines.h"
@@ -14,11 +15,16 @@ namespace osuCrypto
 {
 	static const u64 stepSize(1<<8);
 	static const u8 numSuperBlocks(4); //wide of T (or field size)
-	static const u64 numDummies(1);
-	static const u64 maxBinSize(50);
-	static const u64 expBinsize(1 << 6);
+	static const u64 recvNumDummies(1);
+	static const u64 recvMaxBinSize(50);
 	static std::vector<block> mOneBlocks(128);
 	static const u64 primeLong(128);
+
+	struct item
+	{
+		u64 mHashIdx;
+		u64 mIdx;
+	};
 
 
 	static __m128i mm_bitshift_right(__m128i x, unsigned count)
@@ -108,6 +114,10 @@ namespace osuCrypto
 				break;
 			}
 		}
+
+		/*std::cout << IoStream::lock;
+		std::cout << "\t output " << output[0] << "\n";
+		std::cout << IoStream::unlock;*/
 
 	}
 

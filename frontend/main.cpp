@@ -69,7 +69,7 @@ using namespace osuCrypto;
 
 #include "PRTY/PrtySender.h"
 #include "PRTY/PrtyReceiver.h"
-#include "Tools/SimpleIndex.h"
+#include "Tools/BalancedIndex.h"
 
 #include <thread>
 #include <vector>
@@ -873,7 +873,7 @@ void Hashing_Test_Impl()
 	for (u64 i = 0; i < set.size(); ++i)
 		set[i] = prng.get<block>();
 
-	SimpleIndex simple;
+	BalancedIndex simple;
 	gTimer.reset();
 	gTimer.setTimePoint("start");
 	simple.init(setSize,40, 1);
@@ -947,10 +947,8 @@ int main(int argc, char** argv)
 		sendSet[i] = prng0.get<block>();
 		recvSet[i] = prng0.get<block>();
 	}
-	sendSet[0] = recvSet[0];
 	sendSet[2] = recvSet[2];
-	std::cout << "intersection: " << sendSet[0] << "\n";
-	std::cout << "intersection: " << sendSet[2] << "\n";
+
 	
 
 #if 0
@@ -970,6 +968,7 @@ int main(int argc, char** argv)
 			Sender(setSize,sendSet, numThreads);
 		});
 
+		std::cout << "intersection: " << recvSet[2] << "\n";
 		Receiver(setSize, recvSet, numThreads);
 
 		thrd.join();
@@ -979,6 +978,7 @@ int main(int argc, char** argv)
 		Sender(setSize, sendSet, numThreads);
 	}
 	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
+		std::cout << "intersection: " << recvSet[2] << "\n";
 		Receiver(setSize, sendSet, numThreads);
 	}
 	else {

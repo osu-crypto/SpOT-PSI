@@ -67,7 +67,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories);$(SolutionDir)\thirdparty\win\boost\stage\lib;C:/libs/boost\stage\lib;$(OutDir);$(SolutionDir)thirdparty\win\;C:/libs/;D:\libs;D:/libs/boost\stage\lib;D:/libs/;D:\psitest\npsi\libOTe;C:/libs/boost-n\stage\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libOTe.lib;Tests.lib;cryptoTools.lib;miracl\x64\Debug\miracl.lib;libPSI.lib;cryptopp\x64\Output\Debug\cryptlib.lib;libPoly.lib;NTL\x64\Debug\NTL.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libOTe.lib;Tests.lib;cryptoTools.lib;miracl\x64\Debug\miracl.lib;libPSI.lib;cryptopp\x64\Output\Debug\cryptlib.lib;NTL\x64\Debug\NTL.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

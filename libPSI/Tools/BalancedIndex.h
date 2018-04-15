@@ -7,26 +7,27 @@
 
 namespace osuCrypto
 {
-	
-
-    class SimpleIndex
+    class BalancedIndex
     {
     public:
 
 		struct Bin
 		{
-			std::vector<item> values; //index of items
+			std::unordered_map<u64, std::vector<item>> values; //<IdxAlterBin, index of items which have this alter bin>
+			std::vector<u64> lightBins; //index of alternative light Bins
+			u64 cnt;
 		};
 
 
-        u64 mNumBalls, mNumBins, mNumDummies, mTheirMaxBinSize;
+        u64 mNumBalls, mNumBins, mNumDummies, numIters, mMaxBinSize;
 
         std::vector<Bin> mBins;
         block mHashSeed;
 		AES mAesHasher;
         void print(span<block> items) ;
-		void init(u64 theirInputSize, u64 theriMaxBinSize, u64 theirNumDummies, u64 statSecParam = 40);
+		void init(u64 inputSize, u64 maxBinSize, u64 numDummies, u64 statSecParam = 40);
         void insertItems(span<block> items);
+		void check();
     };
 
 }

@@ -1,6 +1,26 @@
 ### Windows
 
-First clone and build libOTe which should share the same parent directory. Then clone this library and open the solution in Visaul Studio.
+```
+git clone --recursive git@github.com:nitrieu/SpOT-PSI_impl.git
+```
+
+
+...........
+
+##### change ntl code
+```
+   struct MatPrime_crt_helper_deleter_policy {
+      static void deleter(MatPrime_crt_helper *p) { MatPrime_crt_helper_deleter(p); }
+   };
+```
+to
+```
+   struct MatPrime_crt_helper_deleter_policy {
+      static void deleter(MatPrime_crt_helper *p) {; }
+   };
+```
+
+In lip.h, change _ntl_general_rem_one_struct to be a struct. 
 
 ### Linux
 
