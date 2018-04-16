@@ -19,7 +19,7 @@ namespace osuCrypto
 	{
 		mPsiSecParam = psiSecParam;
 		mPrng.SetSeed(prng.get<block>());
-		mFieldSize = 512; // TODO
+		mFieldSize = fieldSize; // TODO
 
 		std::vector<block> baseOtRecv(128);
 		BitVector baseOtChoices(128);
@@ -347,7 +347,16 @@ namespace osuCrypto
 							{
 								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
 								{
+									
 									mIntersection.push_back(match->second.second);
+
+									/*std::cout << "#id: " << match->second.second <<
+										"\t" << inputs[match->second.second] << std::endl;*/
+									/*block globalTest;
+									memcpy((u8*)&globalTest, (u8*)msk, hashMaskBytes);
+									std::cout << "theirMasks " << hIdx << " " << k << "\t" << globalTest << "\n";*/
+								
+								
 								}
 							}
 							theirMasks += hashMaskBytes;
@@ -390,7 +399,6 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 		
-		gTimer.setTimePoint("End");
 
 
 	//	std::cout << "Outputs.size() " <<Outputs.size() << std::endl;

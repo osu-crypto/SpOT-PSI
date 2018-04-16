@@ -11,19 +11,20 @@
 using namespace NTL;
 #define NTL_Threads_ON
 #ifdef _MSC_VER
-#define PSI_PRINT
+//#define PSI_PRINT
 #endif
 
 
 namespace osuCrypto
 {
-	static const u64 stepSize(1<<8);
+	static const u64 stepSize(1<<6);
 	static const u8 numSuperBlocks(4); //wide of T (or field size)
 	static const u64 recvNumDummies(1);
 	static const u64 recvMaxBinSize(40);
-	static std::vector<block> mOneBlocks(128);
+	static std::vector<block> mOneBlocks(128); 
 	static const u64 primeLong(128);
-
+	static const u64 fieldSize(512); //TODO
+	
 	struct item
 	{
 		u64 mHashIdx;

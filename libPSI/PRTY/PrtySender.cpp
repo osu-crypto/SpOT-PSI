@@ -18,7 +18,7 @@ namespace osuCrypto
 		
 		mPsiSecParam = psiSecParam;
 		mPrng.SetSeed(prng.get<block>());
-		mFieldSize = 512; // TODO
+		mFieldSize = fieldSize; // TODO
 		std::vector<std::array<block, 2>> baseOtSend(128);
 		NaorPinkas baseOTs;
 		baseOTs.send(baseOtSend, mPrng, chls[0], 1);
@@ -109,7 +109,7 @@ namespace osuCrypto
 			std::cout << IoStream::lock;
 #endif
 			polyNTL poly;
-			poly.NtlPolyInit(128 / 8);
+			poly.NtlPolyInit(sizeof(block));
 
 #ifndef NTL_Threads_ON
 			std::cout << IoStream::unlock;
