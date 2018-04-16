@@ -510,6 +510,12 @@ void Receiver(u64 setSize, span<block> inputs,u64 numThreads=1)
 	//gTimer.setTimePoint("finish");
 	std::cout << gTimer << std::endl;
 
+	std::cout << "recv.mIntersection.size(): " << recv.mIntersection.size() << std::endl;
+	for (u64 i = 0; i < recv.mIntersection.size(); ++i)//thrds.size()
+	{
+	//	std::cout << "#id: " << recv.mIntersection[i] <<
+	//		"\t" << inputs[recv.mIntersection[i]] << std::endl;
+	}
 
 	for (u64 i = 0; i < numThreads; ++i)
 		recvChls[i].close();
@@ -947,7 +953,11 @@ int main(int argc, char** argv)
 		sendSet[i] = prng0.get<block>();
 		recvSet[i] = prng0.get<block>();
 	}
-	sendSet[2] = recvSet[2];
+
+	for (u64 i = 0; i < 10; ++i)
+	{
+		sendSet[i] = recvSet[i];
+	}
 
 	
 
@@ -968,7 +978,6 @@ int main(int argc, char** argv)
 			Sender(setSize,sendSet, numThreads);
 		});
 
-		std::cout << "intersection: " << recvSet[2] << "\n";
 		Receiver(setSize, recvSet, numThreads);
 
 		thrd.join();
@@ -978,7 +987,6 @@ int main(int argc, char** argv)
 		Sender(setSize, sendSet, numThreads);
 	}
 	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
-		std::cout << "intersection: " << recvSet[2] << "\n";
 		Receiver(setSize, sendSet, numThreads);
 	}
 	else {

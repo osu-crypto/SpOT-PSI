@@ -104,7 +104,6 @@ namespace osuCrypto
 			u64 binStartIdx = simple.mNumBins * t / numThreads;
 			u64 tempBinEndIdx = (simple.mNumBins * (t + 1) / numThreads);
 			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
-			block temp;
 
 #ifndef NTL_Threads_ON
 			std::cout << IoStream::lock;
@@ -279,6 +278,8 @@ namespace osuCrypto
 			}
 		};
 
+		
+
 	
 		std::vector<std::thread> thrds(chls.size());
 		for (u64 i = 0; i < thrds.size(); ++i)
@@ -291,6 +292,42 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
+		//Dummy
+		for (u64 hIdx = 0; hIdx < 2; hIdx++)
+		{
+			u64 currIdxPermuteDone = idxPermuteDone[hIdx];
+			if (currIdxPermuteDone < inputs.size())
+			{
+				for (u64 i = currIdxPermuteDone; i < inputs.size(); i++)
+				{
+					block blkRandom = mPrng.get<block>();
+					memcpy(globalHash[hIdx].data() + permute[hIdx][idxPermuteDone[hIdx]++] * hashMaskBytes, (u8*)&blkRandom, hashMaskBytes);
+				}
+			}
+		}
+
+#ifdef PSI_PRINT
+	
+		//Dummy
+		for (u64 hIdx = 0; hIdx < 2; hIdx++)
+		{
+			if (idxPermuteDone[hIdx] < inputs.size())
+			{
+				u64 iii = inputs.size() - idxPermuteDone[hIdx];
+				std::cout << "idxPermuteDone" << hIdx << "\t" << iii << "\n";
+			}
+		}
+
+		for (u64 hIdx = 0; hIdx < 2; hIdx++)
+			for (u64 k = 0; k < inputs.size(); ++k)
+			{
+				block globalTest;
+				memcpy((u8*)&globalTest, globalHash[hIdx].data() + k* hashMaskBytes, hashMaskBytes);
+				std::cout << IoStream::lock;
+				std::cout << "globalHash " << hIdx << " " << k << "\t" << globalTest << "\n";
+				std::cout << IoStream::unlock;
+			}
+#endif // PSI_PRINT
 
 		auto sendingMask = [&](u64 t)
 		{
@@ -305,15 +342,24 @@ namespace osuCrypto
 				auto curStepSize = std::min(stepSize, endIdx - i);
 				std::array<std::vector<u8>, 2> sendBuffs;
 
-				sendBuffs[0].resize(curStepSize*hashMaskBytes);
-				sendBuffs[1].resize(curStepSize*hashMaskBytes);
-				
-				memcpy(sendBuffs[0].data(), globalHash[0].data() + i*hashMaskBytes, curStepSize*hashMaskBytes);
-				chl.asyncSend(sendBuffs[0]);
-				
-				memcpy(sendBuffs[1].data(), globalHash[1].data() + i*hashMaskBytes, curStepSize*hashMaskBytes);
+				for (u64 hIdx = 0; hIdx < 2; hIdx++)
+				{
+					sendBuffs[hIdx].resize(curStepSize*hashMaskBytes);
+					memcpy(sendBuffs[hIdx].data(), globalHash[hIdx].data() + i*hashMaskBytes, curStepSize*hashMaskBytes);
+					chl.asyncSend(sendBuffs[hIdx]);
 
-				chl.asyncSend(sendBuffs[1]);
+#ifdef PSI_PRINT
+					for (u64 k = 0; k < curStepSize; ++k)
+					{
+						block globalTest;
+						memcpy((u8*)&globalTest, sendBuffs[hIdx].data() + k* hashMaskBytes, hashMaskBytes);
+						std::cout << IoStream::lock;
+						std::cout << "sendBuffs " << hIdx << " " << k << "\t" << globalTest << "\n";
+						std::cout << IoStream::unlock;
+					}
+#endif // PSI_PRINT
+				}
+				
 			}
 		};
 

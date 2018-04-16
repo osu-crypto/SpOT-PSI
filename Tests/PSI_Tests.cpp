@@ -395,8 +395,10 @@ namespace tests_libOTe
 			sendSet[i] = prng0.get<block>();
 			recvSet[i] = prng0.get<block>();
 		}
-		sendSet[0] = recvSet[0]; sendSet[2] = recvSet[2];
-		std::cout << "intersection: " << sendSet[0] << "\t" << sendSet[2] << "\n";
+		for (u64 i = 0; i < 10; ++i)
+		{
+			sendSet[i] =recvSet[i] ;
+		}
 
 		// set up networking
 		std::string name = "n";
@@ -415,9 +417,7 @@ namespace tests_libOTe
 		PrtySender sender;
 		PrtyReceiver recv;
 
-		std::vector<block> rs(2);
-		rs[0] = ZeroBlock;
-		rs[1] = ZeroBlock;
+		
 		fillOneBlock(mOneBlocks);
 
 		auto thrd = std::thread([&]() {
@@ -450,6 +450,12 @@ namespace tests_libOTe
 		thrd.join();
 
 
+		std::cout << "recv.mIntersection.size(): " << recv.mIntersection.size() << std::endl;
+		for (u64 i = 0; i < recv.mIntersection.size(); ++i)//thrds.size()
+		{
+				std::cout << "#id: " << recv.mIntersection[i] <<
+					"\t" << recvSet[recv.mIntersection[i]] << std::endl;
+		}
 		//check correct OT
 		for (int i = 0; i < 0; ++i) {
 

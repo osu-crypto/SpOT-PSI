@@ -80,8 +80,8 @@ namespace osuCrypto
 		std::cout << IoStream::unlock;*/
 
 		std::array<std::unordered_map<u64, std::pair<block, u64>>, 2> localMasks; //for hash 0 and 1
-		localMasks[0].reserve(inputs.size());//for hash 0
-		localMasks[1].reserve(inputs.size());//for hash 1
+		//localMasks[0].reserve(inputs.size());//for hash 0
+		//localMasks[1].reserve(inputs.size());//for hash 1
 
 		bool changeInputForDebug = true;
 
@@ -92,7 +92,6 @@ namespace osuCrypto
 			u64 binStartIdx = mBalance.mNumBins * t / numThreads;
 			u64 tempBinEndIdx = (mBalance.mNumBins * (t + 1) / numThreads);
 			u64 binEndIdx = std::min(tempBinEndIdx, mBalance.mNumBins);
-			block temp;
 
 #ifndef NTL_Threads_ON
 			std::cout << IoStream::lock;
@@ -295,7 +294,15 @@ namespace osuCrypto
 
 		gTimer.setTimePoint("poly");
 
-	
+#ifdef PSI_PRINT
+		for (int j = 0; j<2; j++)
+			for (auto it = localMasks[j].begin(); it != localMasks[j].end(); ++it)//for each bin, list all alter light bins
+			{
+				block globalTest;
+				memcpy((u8*)&globalTest, (u8*)&it->first, sizeof(u64));
+				std::cout << "localMasks " << j << "\t" << globalTest << "\n";
+			}
+#endif // PSI_PRIN
 //#####################Receive Mask #####################
 			
 
@@ -325,10 +332,13 @@ namespace osuCrypto
 
 					auto theirMasks = recvBuffs[hIdx].data();
 
-					for (u64 k = 0; k < curStepSize; ++k)
-					{
-						auto& msk = *(u64*)(theirMasks);
 
+					if (hashMaskBytes >= sizeof(u64)) //unordered_map only work for key >= 64 bits. i.e. setsize >=2^12
+					{
+						for (u64 k = 0; k < curStepSize; ++k)
+						{
+
+							auto& msk = *(u64*)(theirMasks);
 							// check 64 first bits
 							auto match = localMasks[hIdx].find(msk);
 
@@ -338,13 +348,30 @@ namespace osuCrypto
 								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
 								{
 									mIntersection.push_back(match->second.second);
-									/*std::cout << "#id: " << match->second.second  << 
-										"\t" << inputs[match->second.second]<< std::endl;*/
 								}
 							}
 							theirMasks += hashMaskBytes;
 						}
 					}
+					else //for small set, do O(n^2) check
+					{
+						for (u64 k = 0; k < curStepSize; ++k)
+						{
+
+							for (auto match = localMasks[hIdx].begin(); match != localMasks[hIdx].end(); ++match)
+							{
+								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
+								{
+									mIntersection.push_back(match->second.second);
+								}
+								theirMasks += hashMaskBytes;
+							}
+						}
+					}
+
+
+				}
+
 #endif
 
 				
