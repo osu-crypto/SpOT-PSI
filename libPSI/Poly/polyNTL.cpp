@@ -29,10 +29,16 @@ namespace osuCrypto
 		element = to_GF2E(mGf2x);
 	}
 
+	void polyNTL::GF2EFromBlocks(NTL::GF2E &element, block* blks, u64 size) {
+		NTL::GF2XFromBytes(mGf2x, (u8*)blks, size);
+		element = to_GF2E(mGf2x);
+	}
+
 	void polyNTL::BlockFromGF2E(block& blk, NTL::GF2E & element, u64 size) {
 		NTL::GF2X fromEl = NTL::rep(element); //convert the GF2E element to GF2X element. the function rep returns the representation of GF2E as the related GF2X, it returns as read only.
 		BytesFromGF2X((u8*)&blk, fromEl, size);
 	}
+
 
 	//computes coefficients (in blocks) of f such that f(x[i]) = y[i]
 	void polyNTL::getBlkCoefficients(NTL::vec_GF2E& vecX, NTL::vec_GF2E& vecY, std::vector<block>& coeffs)
@@ -103,6 +109,47 @@ namespace osuCrypto
 		//std::cout << setX[0] << "\t" << y1 <<" 2"<< std::endl;
 	}
 
+
+	void polyNTL::getSuperBlksCoefficients(u64 degree, std::vector<block>& setX
+		, std::vector<std::array<block, numSuperBlocks>>& setY
+		, std::vector<std::array<block, numSuperBlocks>>& coeffs) {
+		//degree = setX.size() - 1;
+		NTL::vec_GF2E x; NTL::vec_GF2E y;
+		NTL::GF2E e;
+
+		for (u64 i = 0; i < setX.size(); ++i)
+		{
+			polyNTL::GF2EFromBlocks(e, (block*)&setX[i], mNumBytes);
+			x.append(e);
+
+			polyNTL::GF2EFromBlocks(e, (block*)&setY[i], mNumBytes);
+			y.append(e);
+		}
+
+
+		NTL::GF2EX polynomial = NTL::interpolate(x, y);
+
+
+		if (degree > setX.size() - 1)
+		{
+			NTL::GF2EX root_polynomial;
+			NTL::BuildFromRoots(root_polynomial, x);
+			NTL::GF2EX dummy_polynomial;
+			NTL::random(dummy_polynomial, degree - setX.size() + 1);
+			NTL::GF2EX d_polynomial;
+			polynomial = polynomial + dummy_polynomial*root_polynomial;
+		}
+
+		coeffs.resize(NTL::deg(polynomial) + 1);
+		for (int i = 0; i <= NTL::deg(polynomial); i++) {
+			e = NTL::coeff(polynomial, i);
+			NTL::GF2X fromEl = NTL::rep(e); //convert the GF2E element to GF2X element. the function rep returns the representation of GF2E as the related GF2X, it returns as read only.
+			BytesFromGF2X((u8*)&coeffs[i], fromEl, mNumBytes);
+		}
+	}
+
+
+
 	//compute y=f(x) giving coefficients (in block)
 	void polyNTL::evalPolynomial(std::vector<block>& coeffs, block& x, block& y)
 	{
@@ -157,5 +204,38 @@ namespace osuCrypto
 			BlockFromGF2E(setY[i], e, mNumBytes); //convert to block 
 		}
 	}
+
+
+	void polyNTL::evalSuperPolynomial(std::vector<std::array<block, numSuperBlocks>>& coeffs
+		, std::vector<block>& setX, std::vector<std::array<block, numSuperBlocks>>& setY)
+	{
+		NTL::GF2EX res_polynomial;
+		NTL::GF2E e;
+		//std::cout << coeffs.size() << std::endl;
+		for (u64 i = 0; i < coeffs.size(); ++i)
+		{
+
+			GF2EFromBlocks(e, (block*)&coeffs[i], mNumBytes);
+			NTL::SetCoeff(res_polynomial, i, e); //build res_polynomial
+		}
+
+
+
+
+		setY.resize(setX.size());
+		for (u64 i = 0; i < setY.size(); ++i)
+		{
+			GF2EFromBlocks(e, (block*)&setX[i], mNumBytes);
+			e = NTL::eval(res_polynomial, e); //get y=f(x) in GF2E
+			NTL::GF2X fromEl = NTL::rep(e); //convert the GF2E element to GF2X element. the function rep returns the representation of GF2E as the related GF2X, it returns as read only.
+			BytesFromGF2X((u8*)&setY[i], fromEl, mNumBytes);
+		}
+	}
+
+
+
+
+
+
 
 }

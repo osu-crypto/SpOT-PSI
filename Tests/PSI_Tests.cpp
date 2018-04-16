@@ -268,24 +268,75 @@ namespace tests_libOTe
 
 
 		{
-			std::vector<block> X(degree + 1), Y(degree + 1), Y2(degree + 1),coeffs;
+			std::vector<block> X(degree + 1);
+			std::vector<std::array<block, numSuperBlocks>> Y(degree + 1), Y1(degree+1), coeffs;
 			for (u64 i = 0; i < X.size(); ++i)
 			{
 				X[i] = prng0.get<block>();
-				Y[i] = prng0.get<block>();
+				for (u64 j = 0; j < numSuperBlocks; j++)
+				{
+					Y[i][j] = prng0.get<block>();
+				}
+			}
+
+
+			polyNTL poly;
+			poly.NtlPolyInit(440/8);
+
+			poly.getSuperBlksCoefficients(degree + 2, X, Y, coeffs);
+			std::cout << coeffs[0][3] << "\n";;
+
+			poly.evalSuperPolynomial(coeffs, X, Y1);
+
+
+			for (u64 i = 0; i < X.size(); ++i)
+			{
+				for (u64 j = 0; j < numSuperBlocks; j++)
+					std::cout << Y[i][j] << "\t" << Y1[i][j] << "\n";
 
 			}
 
-			polyNTL poly;
-			poly.NtlPolyInit(128 / 8);
-			poly.getBlkCoefficients(degree+2, X, Y, coeffs);
 
-			block temp;
-			poly.evalPolynomial(coeffs, X[0], temp);
-			std::cout << Y[0] << "\t" << temp << "\n";
+			NTL::GF2E e;
+			NTL::vec_GF2E x; NTL::vec_GF2E y;
 
+			for (u64 i = 0; i < X.size(); ++i)
+			{
+
+				poly.GF2EFromBlocks(e, (block*)&X[i], poly.mNumBytes);
+				//std::cout << e << "\n";;
+				x.append(e);
+
+				poly.GF2EFromBlocks(e, (block*)&Y[i], poly.mNumBytes);
+				//std::cout << e << "\n";;
+				y.append(e);
+
+			}
+
+	
+			NTL::GF2EX polynomial = NTL::interpolate(x, y);
+
+			for (u64 i = 0; i < X.size(); ++i)
+			{
+				std::cout << i << ": " << X[i] << "\t";
+
+				poly.GF2EFromBlocks(e, (block*)&X[i], poly.mNumBytes);
+				e = NTL::eval(polynomial, e); //get y=f(x) in GF2E
+				NTL::GF2X fromEl = NTL::rep(e); //convert the GF2E element to GF2X element. the function rep returns the representation of GF2E as the related GF2X, it returns as read only.
+				std::array<block, numSuperBlocks> yyyy;
+				
+				//std::array<block, numSuperBlocks> yyyy;
+				BytesFromGF2X((u8*)&yyyy, fromEl, poly.mNumBytes);
+
+				for (u64 j = 0; j < numSuperBlocks; j++)
+					std::cout <<Y[i][j] << "\t" << yyyy[j] << "\n";
+
+			}
+
+			
 		}
 
+#if 0
 		{
 			ZZ prime;
 
@@ -377,6 +428,8 @@ namespace tests_libOTe
 			//test_interpolation_result_zp(P, x, y, long degree)
 
 		}
+
+#endif
 	}
 
 

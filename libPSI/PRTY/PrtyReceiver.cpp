@@ -67,6 +67,17 @@ namespace osuCrypto
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
 		u64 hashMaskBytes = (40 + 2 * log2(inputs.size()) + 7) / 8;
 
+
+		//block mTruncateBlk;
+		//u64 ishift = 0;
+		//for (u64 i = (numSuperBlocks-1) * 128; i <  mFieldSize; i++)
+		//{
+		//	block temp = mm_bitshift_right(OneBlock, ishift++);
+		//	mTruncateBlk = mTruncateBlk^temp;
+		//}
+
+
+
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
 		BalancedIndex mBalance;
@@ -93,15 +104,15 @@ namespace osuCrypto
 			u64 tempBinEndIdx = (mBalance.mNumBins * (t + 1) / numThreads);
 			u64 binEndIdx = std::min(tempBinEndIdx, mBalance.mNumBins);
 
-#ifndef NTL_Threads_ON
-			std::cout << IoStream::lock;
-#endif
 			polyNTL poly;
-			poly.NtlPolyInit(128 / 8);
+			poly.NtlPolyInit(sizeof(block));
 
-#ifndef NTL_Threads_ON
-			std::cout << IoStream::unlock;
-#endif
+			/*polyNTL poly_lastBlk;
+			u64 lastBlkByteSize = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
+			poly_lastBlk.NtlPolyInit(lastBlkByteSize);*/
+
+
+
 
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
@@ -148,16 +159,16 @@ namespace osuCrypto
 							std::cout << IoStream::unlock;*/
 
 
-							if (it->second[idx].mIdx == mIdxForDebug)
+							if (it->second[idx].mIdx == mIdxForDebug && bIdx==2)
 							{
 								for (int j = 0; j < numSuperBlocks; ++j) {
 									mRowTforDebug[j] = rowT[k*mBalance.mMaxBinSize + cntRows][j];
 									mRowUforDebug[j] = rowU[cntRows][j];
 
-									/*	block tempR = mRowTforDebug[j] ^ mRowUforDebug[j];
-									std::cout << mRowTforDebug[j] << "\t"
+										block tempR = mRowTforDebug[j] ^ mRowUforDebug[j];
+									std::cout << mIdxForDebug << ": "<<mRowTforDebug[j] << "\t"
 											 << mRowUforDebug[j] << "\t"
-											<< tempR <<" ========\n";*/
+											<< tempR <<" tempR===\n";
 								}
 							}
 
@@ -192,15 +203,27 @@ namespace osuCrypto
 						for (u64 idx = 0; idx < cntRows; ++idx)
 							memcpy((u8*)&Y[idx], (u8*)&rowR[idx][j], sizeof(block));
 
-						poly.getBlkCoefficients(degree, X, Y, coeffs);  //pad with dummy here
-
-
-						for (int c = 0; c < coeffs.size(); c++) {
-							memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], sizeof(block));
-							iterSend += sizeof(block);
+					
+						//if (j == numSuperBlocks - 1)
+						//{
+						//	poly_lastBlk.getBlkCoefficients(degree, X, Y, coeffs);  //pad with dummy here
+						//	for (int c = 0; c < coeffs.size(); c++) {
+						//		memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], lastBlkByteSize);
+						//		iterSend += lastBlkByteSize;
+						//	}
+						//}
+						//else
+						{
+							poly.getBlkCoefficients(degree, X, Y, coeffs);  //pad with dummy here
+							for (int c = 0; c < coeffs.size(); c++) {
+								memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], sizeof(block));
+								iterSend += sizeof(block);
+							}
 						}
-
 					}
+
+
+
 #ifndef NTL_Threads_ON
 					std::cout << IoStream::unlock;
 #endif // NTL_Threads_O
@@ -263,12 +286,20 @@ namespace osuCrypto
 
 						cipher = ZeroBlock;
 						for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-							cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k*mBalance.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
+						{
+							//if (j == numSuperBlocks - 1)
+							//{
+							//	block temp= rowT[k*mBalance.mMaxBinSize + idx][j] &mTruncateBlk;
+							//	cipher = mBalance.mAesHasher.ecbEncBlock(temp) ^ cipher; //compute H(Q+s*P)=xor of all slices
 
+							//}
+							//else
+								cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k*mBalance.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
+						}
 
 						if (it.mIdx == mIdxForDebug)
 						{
-							std::cout << "recv mask " << cipher << "\n";
+							std::cout << "recvMask " << cipher << "\n";
 						}
 						//std::cout << IoStream::lock;
 						localMasks[it.mHashIdx].emplace(*(u64*)&cipher, std::pair<block, u64>(cipher, it.mIdx));

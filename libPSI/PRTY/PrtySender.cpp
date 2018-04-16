@@ -62,9 +62,26 @@ namespace osuCrypto
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
 		u64 hashMaskBytes = (40+2*log2(inputs.size())+7) / 8;
+	
+		//u8 bit = 0;
+		//block mTruncateBlk;
+		//for (u64 i = 0; i < numSuperBlocks * 128 - mFieldSize; i++)
+		//{
+		//	mOtChoices.pushBack(bit);
+		//	block temp = mm_bitshift_left(OneBlock,i);
+		//}
+
+		//u64 ishift = 0;
+		//for (u64 i = (numSuperBlocks - 1) * 128; i < mFieldSize; i++)
+		//{
+		//	block temp = mm_bitshift_right(OneBlock, ishift++);
+		//	mTruncateBlk = mTruncateBlk^temp;
+		//}
+
+
 		auto choiceBlocks = mOtChoices.getSpan<block>(); //s
-		
-		
+
+
 		std::array<std::vector<u8>,2> globalHash;
 		globalHash[0].resize(inputs.size()*hashMaskBytes);
 		globalHash[1].resize(inputs.size()*hashMaskBytes);
@@ -105,15 +122,12 @@ namespace osuCrypto
 			u64 tempBinEndIdx = (simple.mNumBins * (t + 1) / numThreads);
 			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
 
-#ifndef NTL_Threads_ON
-			std::cout << IoStream::lock;
-#endif
 			polyNTL poly;
 			poly.NtlPolyInit(sizeof(block));
 
-#ifndef NTL_Threads_ON
-			std::cout << IoStream::unlock;
-#endif
+			/*polyNTL poly_lastBlk;
+			u64 lastBlkByteSize = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
+			poly_lastBlk.NtlPolyInit(lastBlkByteSize);*/
 
 
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
@@ -192,18 +206,32 @@ namespace osuCrypto
 
 					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 					{
-						for (int c = 0; c < coeffs.size(); c++) {
-							memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, sizeof(block));
-							iterSend += sizeof(block);
+						//if (j == numSuperBlocks - 1)
+						//{
+						//	for (int c = 0; c < coeffs.size(); c++) {
+						//		memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, lastBlkByteSize);
+						//		iterSend += lastBlkByteSize;
+						//	}
+						//	poly_lastBlk.evalPolynomial(coeffs, vecX, R);
+						//}
+						//else
+						{
+							for (int c = 0; c < coeffs.size(); c++) {
+								memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, sizeof(block));
+								iterSend += sizeof(block);
+							}
+							poly.evalPolynomial(coeffs, vecX, R);
 						}
-						poly.evalPolynomial(coeffs, vecX, R);
 
 						for (int idx = 0; idx < realNumRows; idx++) {
 
 							rcvBlk = rowQ[iterRowQ+idx][j] ^ (R[idx] & choiceBlocks[j]); //Q+s*P
 
-							/*if (bIdx == 2 && idx == 0)
-								std::cout << "R[idx]" << R[idx] << "\t" << rcvBlk<<"\t"<<"\n";*/
+							/*if (j == numSuperBlocks - 1)
+								rcvBlk = rcvBlk&mTruncateBlk;*/
+
+							if (bIdx == 2 && idx == 0)
+								std::cout << "R[idx]" << R[idx] << "\t" << rcvBlk<<"\t"<<"\n";
 							
 							localHashes[idx] = simple.mAesHasher.ecbEncBlock(rcvBlk) ^ localHashes[idx]; //compute H(Q+s*P)=xor of all slices
 						}
@@ -211,7 +239,7 @@ namespace osuCrypto
 					}
 
 					if (bIdx == 2)
-						std::cout << "send mask " << localHashes[0] << "\n";
+						std::cout << "sendMask " << localHashes[0] << "\n";
 
 					iterRowQ += realNumRows;
 

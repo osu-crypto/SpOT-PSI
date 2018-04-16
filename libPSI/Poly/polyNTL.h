@@ -16,6 +16,7 @@
 #include "NTL/ZZ_p.h"
 #include "NTL/GF2EX.h" 
 #include "NTL/GF2XFactoring.h"
+#include "PsiDefines.h"
 
 namespace osuCrypto
 {
@@ -32,13 +33,21 @@ public:
 
 	void NtlPolyInit(u64 numBytes);
 	void GF2EFromBlock(NTL::GF2E &element, block& blk, u64 size);
+	void GF2EFromBlocks(NTL::GF2E &element, block* blks, u64 size);
+
 	void BlockFromGF2E(block& blk, NTL::GF2E & element, u64 size);
+
 	void getBlkCoefficients(NTL::vec_GF2E& vecX, NTL::vec_GF2E& vecY, std::vector<block>& coeffs);
 	void getBlkCoefficients(u64 degree, std::vector<block>& setX, std::vector<block>& setY, std::vector<block>& coeffs);
+	void getSuperBlksCoefficients(u64 degree, std::vector<block>& setX
+		, std::vector<std::array<block, numSuperBlocks>>& setY
+		, std::vector<std::array<block, numSuperBlocks>>& coeffs);
+
 	void evalPolynomial(std::vector<block>& coeffs, block& x, block& y);
 	void evalPolynomial(std::vector<block>& coeffs, std::vector<block>& setX, std::vector<block>& setY);
 	void evalPolynomial(std::vector<block>& coeffs, NTL::vec_GF2E& vecX, std::vector<block>& setY);
-
+	void evalSuperPolynomial(std::vector<std::array<block, numSuperBlocks>>& coeffs
+		, std::vector<block>& setX, std::vector<std::array<block, numSuperBlocks>>& setY);
 };
 
 }

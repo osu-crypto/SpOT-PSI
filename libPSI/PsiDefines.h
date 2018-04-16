@@ -11,7 +11,7 @@
 using namespace NTL;
 #define NTL_Threads_ON
 #ifdef _MSC_VER
-//#define PSI_PRINT
+#define PSI_PRINT
 #endif
 
 
@@ -23,7 +23,7 @@ namespace osuCrypto
 	static const u64 recvMaxBinSize(40);
 	static std::vector<block> mOneBlocks(128); 
 	static const u64 primeLong(128);
-	static const u64 fieldSize(512); //TODO
+	static const u64 fieldSize(512); //TODO 4*sizeof(block)
 	
 	struct item
 	{
