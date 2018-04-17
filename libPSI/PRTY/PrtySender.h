@@ -32,6 +32,8 @@ namespace osuCrypto {
 		
 		u64 mFieldSize;
 		ZZ mPrime;
+		block mTruncateBlk;
+
 
 		polyNTL poly;
 		PRNG mPrng;

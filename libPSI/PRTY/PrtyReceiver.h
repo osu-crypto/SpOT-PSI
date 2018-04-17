@@ -30,6 +30,8 @@ namespace osuCrypto
 		KkrtNcoOtReceiver recvOprf;
 		u64 mFieldSize;
 
+		block mTruncateBlk;
+
 		polyNTL poly;
 		PRNG mPrng;
 		ZZ mPrime;

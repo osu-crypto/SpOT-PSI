@@ -23,7 +23,25 @@ namespace osuCrypto
 	static const u64 recvMaxBinSize(40);
 	static std::vector<block> mOneBlocks(128); 
 	static const u64 primeLong(128);
-	static const u64 fieldSize(512); //TODO 4*sizeof(block)
+	static const u64 fieldSize(440); //TODO 4*sizeof(block)
+
+	inline u64 getFieldSizeInBits(u64 setSize)
+	{
+		if (setSize <= (1 << 10))
+			return 416;
+		else if (setSize <= (1 << 12))
+			return 420;
+		else if (setSize <= (1 << 14))
+			return 424;
+		else if (setSize <= (1 << 16))
+			return 428;
+		else if (setSize <= (1 << 18))
+			return 432;
+		else if (setSize <= (1 << 20))
+			return 446;
+
+		return 446;
+	}
 	
 	struct item
 	{

@@ -19,7 +19,15 @@ namespace osuCrypto
 	{
 		mPsiSecParam = psiSecParam;
 		mPrng.SetSeed(prng.get<block>());
-		mFieldSize = fieldSize; // TODO
+		mFieldSize = getFieldSizeInBits(inputs.size()); 
+		fillOneBlock(mOneBlocks);
+		u64 ishift = 0;
+		for (u64 i = (numSuperBlocks - 1) * 128; i < mFieldSize; i++)
+		{
+			block temp = mm_bitshift_right(OneBlock, ishift++);
+			mTruncateBlk = mTruncateBlk^temp;
+		}
+
 
 		std::vector<block> baseOtRecv(128);
 		BitVector baseOtChoices(128);
@@ -45,17 +53,14 @@ namespace osuCrypto
 		mRowU.resize(inputs.size());
 
 
-		//+mOneBlocks.resize(128);
-		fillOneBlock(mOneBlocks);
 
-#ifdef NTL_Threads_ON
-		GenGermainPrime(mPrime, primeLong);
-#else
-		std::cout << IoStream::lock;
-		GenGermainPrime(mPrime, primeLong);
-		std::cout << IoStream::unlock;
-#endif // NTL_Threads_ON
-
+//#ifdef NTL_Threads_ON
+//		GenGermainPrime(mPrime, primeLong);
+//#else
+//		std::cout << IoStream::lock;
+//		GenGermainPrime(mPrime, primeLong);
+//		std::cout << IoStream::unlock;
+//#endif // NTL_Threads_ON
 
 	}
 	void PrtyReceiver::output(span<block> inputs, span<Channel> chls)
@@ -65,16 +70,11 @@ namespace osuCrypto
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
+		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
 		u64 hashMaskBytes = (40 + 2 * log2(inputs.size()) + 7) / 8;
 
-
-		//block mTruncateBlk;
-		//u64 ishift = 0;
-		//for (u64 i = (numSuperBlocks-1) * 128; i <  mFieldSize; i++)
-		//{
-		//	block temp = mm_bitshift_right(OneBlock, ishift++);
-		//	mTruncateBlk = mTruncateBlk^temp;
-		//}
+		
+		
 
 
 
@@ -105,11 +105,19 @@ namespace osuCrypto
 			u64 binEndIdx = std::min(tempBinEndIdx, mBalance.mNumBins);
 
 			polyNTL poly;
-			poly.NtlPolyInit(sizeof(block));
 
+#ifdef GF2X_Slicing
+			poly.NtlPolyInit(sizeof(block));
 			/*polyNTL poly_lastBlk;
 			u64 lastBlkByteSize = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
 			poly_lastBlk.NtlPolyInit(lastBlkByteSize);*/
+#else
+			poly.NtlPolyInit(polyMaskBytes);
+#endif // GF2X_Slicing
+
+			
+
+		
 
 
 
@@ -188,13 +196,9 @@ namespace osuCrypto
 						}
 
 					//=====================Pack=====================
-#ifndef NTL_Threads_ON
-					std::cout << IoStream::lock;
-#endif // NTL_Threads_O
-
+#ifdef GF2X_Slicing
 					u64 degree = mBalance.mMaxBinSize - 1;
 					std::vector<block> X(cntRows), Y(cntRows), coeffs;
-
 					for (u64 idx = 0; idx < cntRows; ++idx)
 						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx].mIdx], sizeof(block));
 
@@ -203,7 +207,6 @@ namespace osuCrypto
 						for (u64 idx = 0; idx < cntRows; ++idx)
 							memcpy((u8*)&Y[idx], (u8*)&rowR[idx][j], sizeof(block));
 
-					
 						//if (j == numSuperBlocks - 1)
 						//{
 						//	poly_lastBlk.getBlkCoefficients(degree, X, Y, coeffs);  //pad with dummy here
@@ -221,13 +224,40 @@ namespace osuCrypto
 							}
 						}
 					}
+#else
+					u64 degree = mBalance.mMaxBinSize - 1;
+					std::vector<block> X(cntRows);
+					std::vector<std::array<block, numSuperBlocks>>  Y(cntRows), coeffs;
+					for (u64 idx = 0; idx < cntRows; ++idx)
+						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx].mIdx], sizeof(block));
 
+					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+					{
+						for (u64 idx = 0; idx < cntRows; ++idx)
+							memcpy((u8*)&Y[idx], (u8*)&rowR[idx][j], sizeof(block));
+					}
+					
+					poly.getSuperBlksCoefficients(degree, X, Y, coeffs);
 
+					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+					{
+						if (j == numSuperBlocks - 1)
+						{
+							for (int c = 0; c < coeffs.size(); c++) {
+								memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], lastPolyMaskBytes);
+								iterSend += lastPolyMaskBytes;
+							}
+						}
+						else
+						{
+							for (int c = 0; c < coeffs.size(); c++) {
+								memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], sizeof(block));
+								iterSend += sizeof(block);
+							}
+						}
+					}
 
-#ifndef NTL_Threads_ON
-					std::cout << IoStream::unlock;
-#endif // NTL_Threads_O
-
+#endif // GF2X_Slicing
 
 #if 0
 
@@ -287,13 +317,13 @@ namespace osuCrypto
 						cipher = ZeroBlock;
 						for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 						{
-							//if (j == numSuperBlocks - 1)
-							//{
-							//	block temp= rowT[k*mBalance.mMaxBinSize + idx][j] &mTruncateBlk;
-							//	cipher = mBalance.mAesHasher.ecbEncBlock(temp) ^ cipher; //compute H(Q+s*P)=xor of all slices
+							if (j == numSuperBlocks - 1)
+							{
+								block temp= rowT[k*mBalance.mMaxBinSize + idx][j] &mTruncateBlk;
+								cipher = mBalance.mAesHasher.ecbEncBlock(temp) ^ cipher; //compute H(Q+s*P)=xor of all slices
 
-							//}
-							//else
+							}
+							else
 								cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k*mBalance.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
 						}
 

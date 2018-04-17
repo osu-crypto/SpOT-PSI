@@ -296,43 +296,6 @@ namespace tests_libOTe
 
 			}
 
-
-			NTL::GF2E e;
-			NTL::vec_GF2E x; NTL::vec_GF2E y;
-
-			for (u64 i = 0; i < X.size(); ++i)
-			{
-
-				poly.GF2EFromBlocks(e, (block*)&X[i], poly.mNumBytes);
-				//std::cout << e << "\n";;
-				x.append(e);
-
-				poly.GF2EFromBlocks(e, (block*)&Y[i], poly.mNumBytes);
-				//std::cout << e << "\n";;
-				y.append(e);
-
-			}
-
-	
-			NTL::GF2EX polynomial = NTL::interpolate(x, y);
-
-			for (u64 i = 0; i < X.size(); ++i)
-			{
-				std::cout << i << ": " << X[i] << "\t";
-
-				poly.GF2EFromBlocks(e, (block*)&X[i], poly.mNumBytes);
-				e = NTL::eval(polynomial, e); //get y=f(x) in GF2E
-				NTL::GF2X fromEl = NTL::rep(e); //convert the GF2E element to GF2X element. the function rep returns the representation of GF2E as the related GF2X, it returns as read only.
-				std::array<block, numSuperBlocks> yyyy;
-				
-				//std::array<block, numSuperBlocks> yyyy;
-				BytesFromGF2X((u8*)&yyyy, fromEl, poly.mNumBytes);
-
-				for (u64 j = 0; j < numSuperBlocks; j++)
-					std::cout <<Y[i][j] << "\t" << yyyy[j] << "\n";
-
-			}
-
 			
 		}
 

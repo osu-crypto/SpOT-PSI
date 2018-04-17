@@ -37,8 +37,8 @@ message(STATUS "NTL  ${NTL_Lib_Dirs}")
 ##############################################
 ##                 Link GMP                  #
 ##############################################
-set(NTL_Lib_Dirs "${GMP_Dirs}src/")
-set(NTL_Include_Dirs "${GMP_Dirs}include/")
+set(GMP_Lib_Dirs "${GMP_Dirs}src/")
+set(GMP_Include_Dirs "${GMP_Dirs}include/")
   find_library(
     GMP_LIB 
     NAMES gmp libgmp.a  
@@ -59,6 +59,33 @@ set(NTL_Include_Dirs "${GMP_Dirs}include/")
 message(STATUS "GMP  ${GMP_LIB}")
 message(STATUS "GMP  ${GMP_Include_Dirs}")
 message(STATUS "GMP  ${GMP_Lib_Dirs}")
+
+##############################################
+##                 Link GF2X                  #
+##############################################
+#set(GF2X_Lib_Dirs "${GF2X_Dirs}lib/")
+#set(GF2X_Include_Dirs "${GF2X_Dirs}include/")
+  #find_library(
+    #GF2X_LIB 
+    #NAMES gf2x libgf2x.a  
+    #PATHS "${GF2X_Lib_Dirs}")
+  #
+  ## if we still cant fint it, throw an error
+  #if(NOT GF2X_LIB) 
+	#if(EXISTS "${GF2X_Lib_Dirs}libgf2x.a")
+		#set(GF2X_LIB "${GF2X_Lib_Dirs}libgf2x.a")
+	#else()
+	   #Message(${GF2X_LIB})
+		#message(FATAL_ERROR "Failed to find GF2X at ${GF2X_Lib_Dirs} or at system locations." )
+	#endif()
+  #endif()
+##endif()
+#
+#message(STATUS "GF2X  ${GF2X_LIB}")
+#message(STATUS "GF2X ${GF2X_Include_Dirs}")
+#message(STATUS "GF2X ${GF2X_Lib_Dirs}")
+
+
 #############################################
 #                 Link Boost                #
 #############################################
@@ -125,7 +152,8 @@ add_library(libPSI ${SRCS})
 target_include_directories(libPSI PUBLIC ${Boost_INCLUDE_DIR}) 
 target_include_directories(libPSI PUBLIC ${NTL_Include_Dirs}) 
 target_include_directories(libPSI PUBLIC ${GMP_Include_Dirs})
+#target_include_directories(libPSI PUBLIC ${GF2X_Include_Dirs})
 target_include_directories(libPSI PUBLIC ${CMAKE_SOURCE_DIR}/libPSI) 
 target_include_directories(libPSI PUBLIC ${CMAKE_SOURCE_DIR}/libPSI) 
 
-target_link_libraries(libPSI ${libOTe_LIB}  ${cryptoTools_LIB} ${MIRACL_LIB}  ${Boost_LIBRARIES} ${NTL_LIB} ${GMP_LIB})
+target_link_libraries(libPSI ${libOTe_LIB}  ${cryptoTools_LIB} ${MIRACL_LIB}  ${Boost_LIBRARIES} ${NTL_LIB} ${GMP_LIB} )

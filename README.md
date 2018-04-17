@@ -40,6 +40,8 @@ make
 ###### build extra ntl library 
 ```
 cd SpOT-PSI_impl/thirdparty/linux/
+bash gmp.get
+bash gf2x.get
 bash ntl.get
 ```
 
