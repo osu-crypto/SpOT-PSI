@@ -74,6 +74,9 @@ using namespace osuCrypto;
 #include <thread>
 #include <vector>
 
+
+static u64 expectedIntersection = 100;
+
 void usage(const char* argv0)
 {
 	std::cout << "Error! Please use:" << std::endl;
@@ -139,7 +142,8 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 
 	std::cout << gTimer << std::endl;
 
-	std::cout << "recv.mIntersection.size(): " << recv.mIntersection.size() << std::endl;
+	std::cout << "recv.mIntersection  : " << recv.mIntersection.size() << std::endl;
+	std::cout << "expectedIntersection: " << expectedIntersection << std::endl;
 	for (u64 i = 0; i < recv.mIntersection.size(); ++i)//thrds.size()
 	{
 		/*std::cout << "#id: " << recv.mIntersection[i] <<
@@ -398,7 +402,7 @@ int main(int argc, char** argv)
 	return 0;*/
 
 
-	u64 sendSetSize = 1 << 20, recvSetSize = 11041, numThreads=1;
+	u64 sendSetSize = 1 << 16, recvSetSize =1<<12, numThreads=2;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
 	
@@ -409,7 +413,7 @@ int main(int argc, char** argv)
 	for (u64 i = 0; i < recvSetSize; ++i)
 		recvSet[i] = prng0.get<block>();
 
-	for (u64 i = 0; i < 10; ++i)
+	for (u64 i = 0; i < expectedIntersection; ++i)
 	{
 		sendSet[i] = recvSet[i];
 	}
@@ -417,10 +421,12 @@ int main(int argc, char** argv)
 	
 #if 0
 	std::thread thrd = std::thread([&]() {
-		Sender(setSize, sendSet);
+		Sender(sendSet, recvSetSize, numThreads);
+
 	});
 
-	Receiver(setSize, recvSet);
+	Receiver(recvSet, sendSetSize, numThreads);
+
 
 	thrd.join();
 	return 0;

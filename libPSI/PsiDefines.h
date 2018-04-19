@@ -11,7 +11,7 @@
 using namespace NTL;
 #define NTL_Threads_ON
 #ifdef _MSC_VER
-#define PSI_PRINT
+//#define PSI_PRINT
 #endif
 
 
@@ -25,7 +25,7 @@ namespace osuCrypto
 	static const u64 primeLong(128);
 	static const u64 fieldSize(440); //TODO 4*sizeof(block)
 
-	static const u64 bIdxForDebug(14), iIdxForDebug(0);
+	static const u64 bIdxForDebug(3), iIdxForDebug(0), hIdxForDebug(0);
 
 
 

@@ -399,7 +399,7 @@ namespace tests_libOTe
 	void Prty_PSI_impl()
 	{
 		setThreadName("Sender");
-		u64 setSenderSize = 1 << 10, setRecvSize = 1 << 9, psiSecParam = 40, numThreads(2);
+		u64 setSenderSize = 1 << 11, setRecvSize = 1 << 10, psiSecParam = 40, numThreads(1);
 
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 		PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
@@ -459,19 +459,7 @@ namespace tests_libOTe
 		}
 
 
-		//check More
-
-			for (int j = 0; j < numSuperBlocks; ++j) {
-				std::cout << sender.mRowQforDebug[j] << "\t";
-				std::cout << recv.mRowTforDebug[j] << "\t";
-				std::cout << recv.mRowUforDebug[j]<< "\n";
-				block P;
-				P = recv.mRowTforDebug[j] ^ recv.mRowUforDebug[j];
-				auto choiceBlocks = sender.mOtChoices.getSpan<block>();
-
-				block q=(P&choiceBlocks[j]) ^ sender.mRowQforDebug[j];
-				std::cout << q << "\n";
-			}
+		
 
 
 		for (u64 i = 0; i < numThreads; ++i)

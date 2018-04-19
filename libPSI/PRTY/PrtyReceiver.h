@@ -41,10 +41,7 @@ namespace osuCrypto
 		std::vector<AES> mAesU;
 		std::vector<u64> mIntersection; //index
 
-
-		std::array<block, numSuperBlocks> mRowTforDebug;
-		std::array<block, numSuperBlocks> mRowUforDebug;
-		u64 mIdxForDebug, mIdxRowTForDebug, mKIdxForDebug;
+		block recvMaskForDebug;
 
 		std::vector<block> Outputs;
 

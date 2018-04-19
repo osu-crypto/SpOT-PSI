@@ -105,7 +105,6 @@ namespace osuCrypto
 		//gTimer.setTimePoint("start");
 		simple.init(mTheirInputSize, recvMaxBinSize, recvNumDummies);
 		simple.insertItems(inputs);
-		inputs[simple.mBins[2].values[0].mIdx] = OneBlock;
 		//gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;
 
@@ -153,19 +152,6 @@ namespace osuCrypto
 					for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
 					{
 						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[iterRowQ], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
-
-						//std::cout << IoStream::lock;
-						//std::cout << idx << "\t S: " << inputs[simple.mBins[bIdx].values[idx].mIdx] <<
-						//	"\t" << rowQ[iterRowQ][0] << "\n";
-						//std::cout << IoStream::unlock;
-
-						if (bIdx == bIdxForDebug && idx == iIdxForDebug)
-						{
-							for (int j = 0; j < numSuperBlocks; ++j) {
-								mRowQforDebug[j] = rowQ[iterRowQ][j];
-							}
-						}
-
 						iterRowQ++;
 					}
 				}
@@ -271,29 +257,33 @@ namespace osuCrypto
 
 							if (j == numSuperBlocks - 1)
 								rcvBlk = rcvBlk &mTruncateBlk;
-
-							//if (bIdx == 2 && idx == 0)
-							//	std::cout << "R[idx]" << R[idx][j] << "\t hash" << rcvBlk << "\t" << inputs[simple.mBins[bIdx].values[idx].mIdx] << "\n";
-
+							
 							localHashes[idx] = simple.mAesHasher.ecbEncBlock(rcvBlk) ^ localHashes[idx]; //compute H(Q+s*P)=xor of all slices
 						}
 
 
 
 #endif
-					if (bIdx == bIdxForDebug)
-						std::cout << "sendMask " << localHashes[iIdxForDebug] << " X= " << inputs[simple.mBins[bIdx].values[iIdxForDebug].mIdx] << "\n";
+					/*if (bIdx == bIdxForDebug)
+					{
+						idxPermuteDoneforDebug = idxPermuteDone[1];
+
+						std::cout << "sendMask " << localHashes[iIdxForDebug]
+							<< " X= " << inputs[simple.mBins[bIdx].values[iIdxForDebug].mIdx]
+							<< " hIdx " << simple.mBins[bIdx].values[iIdxForDebug].mHashIdx 
+							<<" idxPer " << idxPermuteDoneforDebug << "\n";
+					}*/
+
 
 					iterRowQ += realNumRows;
 
 					std::cout << IoStream::lock;
 					for (int idx = 0; idx < localHashes.size(); idx++) {
 						u64 hashIdx = simple.mBins[bIdx].values[idx].mHashIdx;
-						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes, (u8*)&localHashes[idx], hashMaskBytes);
+						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes
+							, (u8*)&localHashes[idx], hashMaskBytes);
 					}
 					std::cout << IoStream::unlock;
-
-
 
 				}
 
@@ -373,11 +363,18 @@ namespace osuCrypto
 				std::cout << "globalHash " << hIdx << " " << k << "\t" << globalTest << "\n";
 				std::cout << IoStream::unlock;
 			}
+
+		block globalTest;
+		memcpy((u8*)&globalTest, globalHash[1].data() + permute[1][idxPermuteDoneforDebug] * hashMaskBytes, hashMaskBytes);
+		std::cout << "globalHash " << globalTest << "\n";
+
 #endif // PSI_PRINT
 
 		u8 dummy[1];
 		chls[0].asyncSend(dummy, 1);
 		chls[0].recv(dummy, 1);
+
+		
 
 		auto sendingMask = [&](u64 t)
 		{
@@ -390,19 +387,18 @@ namespace osuCrypto
 			for (u64 i = startIdx; i < endIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, endIdx - i);
-				std::array<std::vector<u8>, 2> sendBuffs;
 
 				for (u64 hIdx = 0; hIdx < 2; hIdx++)
 				{
-					sendBuffs[hIdx].resize(curStepSize*hashMaskBytes);
-					memcpy(sendBuffs[hIdx].data(), globalHash[hIdx].data() + i*hashMaskBytes, curStepSize*hashMaskBytes);
-					chl.asyncSend(sendBuffs[hIdx]);
+					std::vector<u8> sendBuff(curStepSize*hashMaskBytes);
+					memcpy(sendBuff.data(), globalHash[hIdx].data() + i*hashMaskBytes, curStepSize*hashMaskBytes);
+					chl.asyncSend(std::move(sendBuff));
 
 #ifdef PSI_PRINT
 					for (u64 k = 0; k < curStepSize; ++k)
 					{
 						block globalTest;
-						memcpy((u8*)&globalTest, sendBuffs[hIdx].data() + k* hashMaskBytes, hashMaskBytes);
+						memcpy((u8*)&globalTest, sendBuff[hIdx].data() + k* hashMaskBytes, hashMaskBytes);
 						std::cout << IoStream::lock;
 						std::cout << "sendBuffs " << hIdx << " " << k << "\t" << globalTest << "\n";
 						std::cout << IoStream::unlock;

@@ -40,9 +40,8 @@ namespace osuCrypto {
 		
 		BitVector mOtChoices;
 		std::vector<AES> mAesQ;
-	
-		std::array<block, numSuperBlocks> mRowQforDebug;
 
+		u64 idxPermuteDoneforDebug, hashIdxforDebug;
 		
 		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);
