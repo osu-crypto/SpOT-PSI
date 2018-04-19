@@ -24,7 +24,7 @@ namespace osuCrypto
 		
 		bool mHasBase;
 
-		u64 mNumOTs, mPolyNumBytes, mPolyDegree, mPsiSecParam;
+		u64 mMyInputSize, mTheirInputSize, mPolyNumBytes, mPolyDegree, mPsiSecParam;
 		std::vector<block> mS;
 		KkrtNcoOtSender sendOprf;
 		KkrtNcoOtReceiver recvOprf;
@@ -37,8 +37,6 @@ namespace osuCrypto
 		ZZ mPrime;
 
 		////std::vector<std::array<block, 2>> mOtKeys;
-		std::vector<std::array<block, numSuperBlocks>> mRowT;
-		std::vector<std::array<block, numSuperBlocks>> mRowU;
 		std::vector<AES> mAesT;
 		std::vector<AES> mAesU;
 		std::vector<u64> mIntersection; //index
@@ -50,7 +48,7 @@ namespace osuCrypto
 
 		std::vector<block> Outputs;
 
-		void init(u64 psiSecParam, PRNG& prng, span<block> inputs, span<Channel> chls);
+		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);
 
     };

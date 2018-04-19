@@ -25,6 +25,10 @@ namespace osuCrypto
 	static const u64 primeLong(128);
 	static const u64 fieldSize(440); //TODO 4*sizeof(block)
 
+	static const u64 bIdxForDebug(14), iIdxForDebug(0);
+
+
+
 	inline u64 getFieldSizeInBits(u64 setSize)
 	{
 		if (setSize <= (1 << 10))
@@ -112,14 +116,18 @@ namespace osuCrypto
 
 	}
 
-	static void prfOtRow(block& input, std::array<block, numSuperBlocks>& output, std::vector<AES> arrAes)
+	static void prfOtRow(block& input, std::array<block, numSuperBlocks>& output, std::vector<AES> arrAes, u64 hIdx=0)
 	{
 		block cipher;
 
 		for (int j = 0; j < numSuperBlocks - 1; ++j) //1st 3 blocks
 			for (int i = 0; i < 128; ++i) //for each column
 			{
-				arrAes[j * 128 + i].ecbEncBlock(input, cipher);
+				if(hIdx==1)
+					arrAes[j * 128 + i].ecbEncBlock(input^OneBlock, cipher);
+				else
+					arrAes[j * 128 + i].ecbEncBlock(input, cipher);
+
 				cipher= cipher& mOneBlocks[i];
 				output[j] = output[j] ^ cipher;
 			}
@@ -129,7 +137,12 @@ namespace osuCrypto
 		for (int i = 0; i < 128; ++i)
 		{
 			if (j * 128 + i < arrAes.size()) {
-				arrAes[j * 128 + i].ecbEncBlock(input, cipher);
+
+				if (hIdx == 1)
+					arrAes[j * 128 + i].ecbEncBlock(input^OneBlock, cipher);
+				else
+					arrAes[j * 128 + i].ecbEncBlock(input, cipher);
+				
 				cipher = cipher& mOneBlocks[i];
 				output[j] = output[j] ^ cipher;
 			}

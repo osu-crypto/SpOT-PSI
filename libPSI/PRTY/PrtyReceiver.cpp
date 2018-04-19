@@ -15,11 +15,15 @@ using namespace NTL;
 
 namespace osuCrypto
 {
-	void PrtyReceiver::init(u64 psiSecParam, PRNG & prng, span<block> inputs, span<Channel> chls)
+	void PrtyReceiver::init(u64 myInputSize, u64 theirInputSize,  u64 psiSecParam, PRNG & prng, span<Channel> chls)
 	{
 		mPsiSecParam = psiSecParam;
+		mMyInputSize = myInputSize;
+		mTheirInputSize = theirInputSize;
+
+		mFieldSize = getFieldSizeInBits(mMyInputSize);
+
 		mPrng.SetSeed(prng.get<block>());
-		mFieldSize = getFieldSizeInBits(inputs.size()); 
 		fillOneBlock(mOneBlocks);
 		u64 ishift = 0;
 		for (u64 i = (numSuperBlocks - 1) * 128; i < mFieldSize; i++)
@@ -49,9 +53,6 @@ namespace osuCrypto
 			mAesU[i].setKey(OtKeys[i][1]);
 		}
 
-		mRowT.resize(inputs.size());
-		mRowU.resize(inputs.size());
-
 
 
 //#ifdef NTL_Threads_ON
@@ -71,17 +72,12 @@ namespace osuCrypto
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
 		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
-		u64 hashMaskBytes = (40 + 2 * log2(inputs.size()) + 7) / 8;
-
-		
-		
-
-
+		u64 hashMaskBytes = (40 + log2(mTheirInputSize*mMyInputSize) + 7) / 8;
 
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
 		BalancedIndex mBalance;
-		mBalance.init(inputs.size(), recvMaxBinSize, recvNumDummies);
+		mBalance.init(mMyInputSize, recvMaxBinSize, recvNumDummies);
 		mBalance.insertItems(inputs);
 		gTimer.setTimePoint("binning");
 		//std::cout << gTimer << std::endl;
@@ -116,18 +112,11 @@ namespace osuCrypto
 #endif // GF2X_Slicing
 
 			
-
-		
-
-
-
-
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
 
-				std::vector<u8> sendBuff;
-				sendBuff.resize(curStepSize*mBalance.mMaxBinSize*numSuperBlocks * sizeof(block));
+				std::vector<u8> sendBuff(curStepSize*mBalance.mMaxBinSize*polyMaskBytes);
 
 				std::vector<std::array<block, numSuperBlocks>> rowT(curStepSize*mBalance.mMaxBinSize);
 				std::vector<item> subIdxItems(curStepSize*mBalance.mMaxBinSize);
@@ -155,8 +144,8 @@ namespace osuCrypto
 								//std::cout << mIdxForDebug << "\t";
 							}
 
-							prfOtRow(inputs[it->second[idx].mIdx], rowT[k*mBalance.mMaxBinSize + cntRows], mAesT);
-							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU);
+							prfOtRow(inputs[it->second[idx].mIdx], rowT[k*mBalance.mMaxBinSize + cntRows], mAesT, it->second[idx].mHashIdx);
+							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
 							subIdxItems[k*mBalance.mMaxBinSize + cntRows] = it->second[idx];
 
 
@@ -173,10 +162,10 @@ namespace osuCrypto
 									mRowTforDebug[j] = rowT[k*mBalance.mMaxBinSize + cntRows][j];
 									mRowUforDebug[j] = rowU[cntRows][j];
 
-										block tempR = mRowTforDebug[j] ^ mRowUforDebug[j];
-									std::cout << mIdxForDebug << ": "<<mRowTforDebug[j] << "\t"
-											 << mRowUforDebug[j] << "\t"
-											<< tempR <<" tempR===\n";
+									/*	block tempR = mRowTforDebug[j] ^ mRowUforDebug[j];
+									std::cout << mIdxForDebug << " T= "<<mRowTforDebug[j] << "\t U= "
+											 << mRowUforDebug[j] << "\t R= "
+											<< tempR <<" \n";*/
 								}
 							}
 
@@ -188,12 +177,13 @@ namespace osuCrypto
 					//std::cout << mBalance.mBins[bIdx].cnt << "\t" << cntRows << "\n";
 					//comput R=T+U
 					for (u64 idx = 0; idx < cntRows; ++idx)
+					{
 						for (u64 j = 0; j < numSuperBlocks; ++j)
 						{
 							rowR[idx][j] = rowT[k*mBalance.mMaxBinSize + idx][j] ^ rowU[idx][j];
-							
-
 						}
+
+					}
 
 					//=====================Pack=====================
 #ifdef GF2X_Slicing
@@ -227,35 +217,41 @@ namespace osuCrypto
 #else
 					u64 degree = mBalance.mMaxBinSize - 1;
 					std::vector<block> X(cntRows);
-					std::vector<std::array<block, numSuperBlocks>>  Y(cntRows), coeffs;
+					std::vector<std::array<block, numSuperBlocks>> coeffs;
 					for (u64 idx = 0; idx < cntRows; ++idx)
 						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx].mIdx], sizeof(block));
 
-					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-					{
-						for (u64 idx = 0; idx < cntRows; ++idx)
-							memcpy((u8*)&Y[idx], (u8*)&rowR[idx][j], sizeof(block));
-					}
-					
-					poly.getSuperBlksCoefficients(degree, X, Y, coeffs);
+					poly.getSuperBlksCoefficients(degree, X, rowR, coeffs);
 
-					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-					{
-						if (j == numSuperBlocks - 1)
-						{
-							for (int c = 0; c < coeffs.size(); c++) {
-								memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], lastPolyMaskBytes);
-								iterSend += lastPolyMaskBytes;
-							}
-						}
-						else
-						{
-							for (int c = 0; c < coeffs.size(); c++) {
-								memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], sizeof(block));
-								iterSend += sizeof(block);
-							}
-						}
+					for (int c = 0; c < coeffs.size(); c++) {
+						memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], polyMaskBytes);
+						iterSend += polyMaskBytes;
 					}
+
+
+					std::vector<block> X2(2*cntRows);
+					for (u64 idx = 0; idx < cntRows; ++idx)
+						X2[idx] = X[idx];
+
+					for (u64 idx = cntRows; idx < X2.size(); ++idx)
+						X2[idx] = mPrng.get<block>();
+
+
+					//std::vector<std::array<block, numSuperBlocks>>  Y1(X2.size());
+					//poly.evalSuperPolynomial(coeffs, X2, Y1);
+
+					//if (bIdx == 2)
+					//{
+					//	std::cout << "rX= " << X2[0] << "\t X2.size() " << X2.size() << "\t  coeffs.size()"<< coeffs.size() <<"\n";
+					//	std::cout << "rY= " ;
+
+					//	for (int j = 0; j < numSuperBlocks; ++j) {
+					//		std::cout <<  Y1[0][j]  << "\t" ;
+					//	}
+					//	std::cout << "\n";
+					//}
+
+											
 
 #endif // GF2X_Slicing
 
@@ -301,13 +297,14 @@ namespace osuCrypto
 
 				}
 
-				chl.asyncSend(std::move(sendBuff)); //send poly
+				chl.send(std::move(sendBuff)); //send poly
 				sendBuff.clear();
 
 #if 1
 				block cipher;
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
+					u64 bIdx = i + k;
 					u64 realRows = mBalance.mBins[i + k].cnt;
 
 					for (u64 idx = 0; idx < realRows; ++idx)
@@ -327,9 +324,9 @@ namespace osuCrypto
 								cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k*mBalance.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
 						}
 
-						if (it.mIdx == mIdxForDebug)
+						if (bIdx== bIdxForDebug && idx==iIdxForDebug)
 						{
-							std::cout << "recvMask " << cipher << "\n";
+							std::cout << "recvMask " << cipher << " X= "<< inputs[it.mIdx]<< "\n";
 						}
 						//std::cout << IoStream::lock;
 						localMasks[it.mHashIdx].emplace(*(u64*)&cipher, std::pair<block, u64>(cipher, it.mIdx));
@@ -365,7 +362,9 @@ namespace osuCrypto
 			}
 #endif // PSI_PRIN
 //#####################Receive Mask #####################
-			
+		u8 dummy[1];
+		chls[0].recv(dummy, 1);
+		chls[0].asyncSend(dummy, 1);
 
 		auto receiveMask = [&](u64 t)
 		{

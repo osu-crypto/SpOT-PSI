@@ -84,7 +84,7 @@ void usage(const char* argv0)
 }
 
 
-void Sender(u64 setSize, span<block> inputs, u64 numThreads = 1)
+void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 {
 	u64 psiSecParam = 40;
 
@@ -100,7 +100,7 @@ void Sender(u64 setSize, span<block> inputs, u64 numThreads = 1)
 		sendChls[i] = ep1.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
 
 	PrtySender sender;
-	sender.init(40, prng0, inputs, sendChls);
+	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	sender.output(inputs, sendChls);
 
 
@@ -110,7 +110,7 @@ void Sender(u64 setSize, span<block> inputs, u64 numThreads = 1)
 	ep1.stop();	ios.stop();
 }
 
-void Receiver(u64 setSize, span<block> inputs,u64 numThreads=1)
+void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 {
 	u64 psiSecParam = 40;
 
@@ -129,7 +129,7 @@ void Receiver(u64 setSize, span<block> inputs,u64 numThreads=1)
 	gTimer.reset();
 	gTimer.setTimePoint("start");
 
-	recv.init(40, prng1, inputs, recvChls); //offline
+	recv.init(inputs.size(), theirSetSize,40, prng1,recvChls); //offline
 	
 	gTimer.setTimePoint("offline");
 	
@@ -398,14 +398,16 @@ int main(int argc, char** argv)
 	return 0;*/
 
 
-	u64 setSize = 1 << 16, numThreads=1;
+	u64 sendSetSize = 1 << 20, recvSetSize = 11041, numThreads=1;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
-	std::vector<block> sendSet(setSize), recvSet(setSize);
-	for (u64 i = 0; i < setSize; ++i)
-	{
+	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
+	
+	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "\n";
+	for (u64 i = 0; i < sendSetSize; ++i)
 		sendSet[i] = prng0.get<block>();
+
+	for (u64 i = 0; i < recvSetSize; ++i)
 		recvSet[i] = prng0.get<block>();
-	}
 
 	for (u64 i = 0; i < 10; ++i)
 	{
@@ -429,19 +431,19 @@ int main(int argc, char** argv)
 	if (argc == 2 && argv[1][0] == '-' && argv[1][1] == 't') {
 		
 		std::thread thrd = std::thread([&]() {
-			Sender(setSize,sendSet, numThreads);
+			Sender(sendSet, recvSetSize, numThreads);
 		});
 
-		Receiver(setSize, recvSet, numThreads);
+		Receiver(recvSet, sendSetSize, numThreads);
 
 		thrd.join();
 
 	}
 	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
-		Sender(setSize, sendSet, numThreads);
+		Sender(sendSet, recvSetSize, numThreads);
 	}
 	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
-		Receiver(setSize, sendSet, numThreads);
+		Receiver(recvSet, sendSetSize, numThreads);
 	}
 	else {
 		usage(argv[0]);

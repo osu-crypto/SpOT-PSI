@@ -25,7 +25,7 @@ namespace osuCrypto {
 		
 		bool mHasBase;
 
-		u64 mNumOTs, mPolyNumBytes, mPolyDegree, mStepSize, mPsiSecParam;
+		u64 mMyInputSize, mTheirInputSize, mPolyNumBytes, mPolyDegree, mStepSize, mPsiSecParam;
 		std::vector<block> mS;
 		KkrtNcoOtReceiver recvOprf;
 		KkrtNcoOtSender sendOprf; //PQET
@@ -39,14 +39,12 @@ namespace osuCrypto {
 		PRNG mPrng;
 		
 		BitVector mOtChoices;
-		std::vector<std::array<block, numSuperBlocks>> mRowQ;
 		std::vector<AES> mAesQ;
 	
 		std::array<block, numSuperBlocks> mRowQforDebug;
 
-
 		
-		void init(u64 psiSecParam, PRNG& prng, span<block> inputs, span<Channel> chls);
+		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);
 	};
 }

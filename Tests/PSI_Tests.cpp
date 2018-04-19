@@ -399,21 +399,24 @@ namespace tests_libOTe
 	void Prty_PSI_impl()
 	{
 		setThreadName("Sender");
-		u64 setSize = 1 << 10, psiSecParam = 40, numThreads(1);
+		u64 setSenderSize = 1 << 10, setRecvSize = 1 << 9, psiSecParam = 40, numThreads(2);
 
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 		PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
 
 
-		std::vector<block> sendSet(setSize), recvSet(setSize);
-		for (u64 i = 0; i < setSize; ++i)
-		{
+		std::vector<block> sendSet(setSenderSize), recvSet(setRecvSize);
+		for (u64 i = 0; i < setSenderSize; ++i)
 			sendSet[i] = prng0.get<block>();
+
+		for (u64 i = 0; i < setRecvSize; ++i)
 			recvSet[i] = prng0.get<block>();
-		}
+
+
 		for (u64 i = 0; i < 10; ++i)
 		{
 			sendSet[i] =recvSet[i] ;
+			//std::cout << "intersection: " <<sendSet[i] << "\n";
 		}
 
 		// set up networking
@@ -437,32 +440,14 @@ namespace tests_libOTe
 		fillOneBlock(mOneBlocks);
 
 		auto thrd = std::thread([&]() {
-			recv.init(40, prng1, recvSet, recvChls);
-			
-			
-			//std::array<block, numSuperBlocks> tT,tU;
-			//prfOtRows(recvSet.data(), recvSet.size(), recv.mRowT, recv.mAesT);
-			//prfOtRows(recvSet.data(), recvSet.size(),recv.mRowU, recv.mAesU);
-
-			prfOtRow(recvSet[0], recv.mRowT[0], recv.mAesT);
-			prfOtRow(recvSet[0],recv.mRowU[0], recv.mAesU);
-			prfOtRow(recvSet[1], recv.mRowT[1], recv.mAesT);
-			prfOtRow(recvSet[1], recv.mRowU[1], recv.mAesU);
-
+			recv.init(recvSet.size(), sendSet.size(), 40, prng1 , recvChls);
 			recv.output(recvSet, recvChls);
 
 		});
-
-		sender.init(40, prng0, sendSet, sendChls);
 		
-
-		//prfOtRows(sendSet.data(), sendSet.size(), sender.mRowQ, sender.mAesQ);
-		prfOtRow(sendSet[0], sender.mRowQ[0], sender.mAesQ);
-		prfOtRow(sendSet[1], sender.mRowQ[1], sender.mAesQ);
-
+		sender.init(sendSet.size(), recvSet.size(), 40, prng0,  sendChls);
 		sender.output(sendSet, sendChls);
-
-
+		
 		thrd.join();
 
 
@@ -471,19 +456,6 @@ namespace tests_libOTe
 		{
 				std::cout << "#id: " << recv.mIntersection[i] <<
 					"\t" << recvSet[recv.mIntersection[i]] << std::endl;
-		}
-		//check correct OT
-		for (int i = 0; i < 0; ++i) {
-
-			for (int j = 0; j < numSuperBlocks; ++j) {
-				std::cout << sender.mRowQ[i][j] << "\n";
-				block test;
-				test = recv.mRowT[i][j] ^ recv.mRowU[i][j];
-				auto choiceBlocks = sender.mOtChoices.getSpan<block>();
-
-				test = (test&choiceBlocks[j]) ^ recv.mRowT[i][j];
-				std::cout << test << "\n";
-			}
 		}
 
 

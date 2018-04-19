@@ -119,7 +119,10 @@ namespace osuCrypto
 
 		for (u64 i = 0; i < setX.size(); ++i)
 		{
-			polyNTL::GF2EFromBlocks(e, (block*)&setX[i], mNumBytes);
+			std::array<block, numSuperBlocks> xPad;
+			memcpy((u8*)&xPad[0], (u8*)&setX[i], sizeof(block));
+
+			polyNTL::GF2EFromBlocks(e, (block*)&xPad, mNumBytes);
 			x.append(e);
 
 			polyNTL::GF2EFromBlocks(e, (block*)&setY[i], mNumBytes);
@@ -128,6 +131,8 @@ namespace osuCrypto
 
 
 		NTL::GF2EX polynomial = NTL::interpolate(x, y);
+
+		
 
 
 		if (degree > setX.size() - 1)
@@ -220,12 +225,13 @@ namespace osuCrypto
 		}
 
 
-
-
 		setY.resize(setX.size());
 		for (u64 i = 0; i < setY.size(); ++i)
 		{
-			GF2EFromBlocks(e, (block*)&setX[i], mNumBytes);
+			std::array<block, numSuperBlocks> xPad;
+			memcpy((u8*)&xPad[0], (u8*)&setX[i], sizeof(block));
+
+			GF2EFromBlocks(e, (block*)&xPad, mNumBytes);
 			e = NTL::eval(res_polynomial, e); //get y=f(x) in GF2E
 			NTL::GF2X fromEl = NTL::rep(e); //convert the GF2E element to GF2X element. the function rep returns the representation of GF2E as the related GF2X, it returns as read only.
 			BytesFromGF2X((u8*)&setY[i], fromEl, mNumBytes);

@@ -13,12 +13,17 @@ namespace osuCrypto
 	using namespace NTL;
 
 
-	void PrtySender::init(u64 psiSecParam, PRNG & prng, span<block> inputs, span<Channel> chls)
+	void PrtySender::init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG & prng, span<Channel> chls)
 	{
 		mPsiSecParam = psiSecParam;
+		mMyInputSize = myInputSize;
+		mTheirInputSize = theirInputSize;
+
 		mPrng.SetSeed(prng.get<block>());
-		mFieldSize = getFieldSizeInBits(inputs.size());
+		mFieldSize = getFieldSizeInBits(mTheirInputSize);
+
 		fillOneBlock(mOneBlocks);
+
 		u64 ishift = 0;
 		for (u64 i = (numSuperBlocks - 1) * 128; i < mFieldSize; i++)
 		{
@@ -42,8 +47,6 @@ namespace osuCrypto
 		mAesQ.resize(mFieldSize);
 		for (u64 i = 0; i < mFieldSize; i++)
 			mAesQ[i].setKey(OtKeys[i]);
-
-		mRowQ.resize(inputs.size());
 
 		u8 bit = 0; //fill up to numSuperBlocks 
 		for (u64 i = 0; i < numSuperBlocks * 128 - mFieldSize; i++)
@@ -73,7 +76,7 @@ namespace osuCrypto
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
-		u64 hashMaskBytes = (40+2*log2(inputs.size())+7) / 8;
+		u64 hashMaskBytes = (40+log2(mTheirInputSize*mMyInputSize)+7) / 8;
 		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
 
 		auto choiceBlocks = mOtChoices.getSpan<block>(); //s
@@ -100,13 +103,13 @@ namespace osuCrypto
 		SimpleIndex simple;
 		//gTimer.reset();
 		//gTimer.setTimePoint("start");
-		simple.init(inputs.size(), recvMaxBinSize, recvNumDummies);
+		simple.init(mTheirInputSize, recvMaxBinSize, recvNumDummies);
 		simple.insertItems(inputs);
 		inputs[simple.mBins[2].values[0].mIdx] = OneBlock;
 		//gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;
 
-	/*	std::cout << IoStream::lock;
+		/*std::cout << IoStream::lock;
 		simple.print(inputs);
 		std::cout << IoStream::unlock;*/
 
@@ -149,14 +152,14 @@ namespace osuCrypto
 					//=====================Compute OT row=====================
 					for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
 					{
-						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[iterRowQ], mAesQ);
+						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[iterRowQ], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
 
 						//std::cout << IoStream::lock;
 						//std::cout << idx << "\t S: " << inputs[simple.mBins[bIdx].values[idx].mIdx] <<
 						//	"\t" << rowQ[iterRowQ][0] << "\n";
 						//std::cout << IoStream::unlock;
 
-						if (bIdx == 2 && idx==0)
+						if (bIdx == bIdxForDebug && idx == iIdxForDebug)
 						{
 							for (int j = 0; j < numSuperBlocks; ++j) {
 								mRowQforDebug[j] = rowQ[iterRowQ][j];
@@ -168,11 +171,9 @@ namespace osuCrypto
 				}
 				std::vector<u8> recvBuff;
 				chl.recv(recvBuff); //receive Poly
-
-
-			/*		if (recvBuff.size() != curStepSize*simple.mMaxBinSize*numSuperBlocks * sizeof(block));
+		/*			if (recvBuff.size() != curStepSize*simple.mTheirMaxBinSize*polyMaskBytes);
 					{
-						int aa = curStepSize*simple.mMaxBinSize*numSuperBlocks * sizeof(block);
+						int aa = curStepSize*simple.mTheirMaxBinSize*polyMaskBytes;
 						std::cout << recvBuff.size() << "\t" <<aa << std::endl;
 
 						std::cout << "error @ " << (LOCATION) << std::endl;
@@ -243,27 +244,24 @@ namespace osuCrypto
 					for (u64 idx = 0; idx < realNumRows; ++idx)
 						memcpy((u8*)&X[idx], (u8*)&inputs[simple.mBins[bIdx].values[idx].mIdx], sizeof(block));
 
-
-					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+					for (int c = 0; c < coeffs.size(); c++)
 					{
-						if (j == numSuperBlocks - 1)
-						{
-							for (int c = 0; c < coeffs.size(); c++) {
-								memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, lastPolyMaskBytes);
-								iterSend += lastPolyMaskBytes;
-							}
-						}
-						else
-						{
-							for (int c = 0; c < coeffs.size(); c++) {
-								memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, sizeof(block));
-								iterSend += sizeof(block);
-							}
-						}
+						memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, polyMaskBytes);
+						iterSend += polyMaskBytes;
 					}
 
-					poly.evalSuperPolynomial(coeffs, X,R);
-					//std::cout << coeffs[0][3] << "\n";;
+					poly.evalSuperPolynomial(coeffs, X, R);
+
+					//if (bIdx == 2)
+					//{
+					//	std::cout << "rX= " << X[0] << "\t X2.size() " << X.size() << "\t  coeffs.size()" << coeffs.size() << "\n";
+					//	std::cout << "rY= ";
+
+					//	for (int j = 0; j < numSuperBlocks; ++j) {
+					//		std::cout << R[0][j] << "\t";
+					//	}
+					//	std::cout << "\n";
+					//}
 
 
 					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
@@ -274,8 +272,8 @@ namespace osuCrypto
 							if (j == numSuperBlocks - 1)
 								rcvBlk = rcvBlk &mTruncateBlk;
 
-							if (bIdx == 2 && idx == 0)
-								std::cout << "R[idx]" << R[idx][j] << "\t" << rcvBlk << "\t" << "\n";
+							//if (bIdx == 2 && idx == 0)
+							//	std::cout << "R[idx]" << R[idx][j] << "\t hash" << rcvBlk << "\t" << inputs[simple.mBins[bIdx].values[idx].mIdx] << "\n";
 
 							localHashes[idx] = simple.mAesHasher.ecbEncBlock(rcvBlk) ^ localHashes[idx]; //compute H(Q+s*P)=xor of all slices
 						}
@@ -283,17 +281,17 @@ namespace osuCrypto
 
 
 #endif
-					if (bIdx == 2)
-						std::cout << "sendMask " << localHashes[0] << "\n";
+					if (bIdx == bIdxForDebug)
+						std::cout << "sendMask " << localHashes[iIdxForDebug] << " X= " << inputs[simple.mBins[bIdx].values[iIdxForDebug].mIdx] << "\n";
 
 					iterRowQ += realNumRows;
 
-					//std::cout << IoStream::lock;
+					std::cout << IoStream::lock;
 					for (int idx = 0; idx < localHashes.size(); idx++) {
 						u64 hashIdx = simple.mBins[bIdx].values[idx].mHashIdx;
 						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes, (u8*)&localHashes[idx], hashMaskBytes);
 					}
-					//std::cout << IoStream::unlock;
+					std::cout << IoStream::unlock;
 
 
 
@@ -362,32 +360,10 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
-		//Dummy
-		for (u64 hIdx = 0; hIdx < 2; hIdx++)
-		{
-			u64 currIdxPermuteDone = idxPermuteDone[hIdx];
-			if (currIdxPermuteDone < inputs.size())
-			{
-				for (u64 i = currIdxPermuteDone; i < inputs.size(); i++)
-				{
-					block blkRandom = mPrng.get<block>();
-					memcpy(globalHash[hIdx].data() + permute[hIdx][idxPermuteDone[hIdx]++] * hashMaskBytes, (u8*)&blkRandom, hashMaskBytes);
-				}
-			}
-		}
-
+		
 #ifdef PSI_PRINT
 	
-		//Dummy
-		for (u64 hIdx = 0; hIdx < 2; hIdx++)
-		{
-			if (idxPermuteDone[hIdx] < inputs.size())
-			{
-				u64 iii = inputs.size() - idxPermuteDone[hIdx];
-				std::cout << "idxPermuteDone" << hIdx << "\t" << iii << "\n";
-			}
-		}
-
+		
 		for (u64 hIdx = 0; hIdx < 2; hIdx++)
 			for (u64 k = 0; k < inputs.size(); ++k)
 			{
@@ -398,6 +374,10 @@ namespace osuCrypto
 				std::cout << IoStream::unlock;
 			}
 #endif // PSI_PRINT
+
+		u8 dummy[1];
+		chls[0].asyncSend(dummy, 1);
+		chls[0].recv(dummy, 1);
 
 		auto sendingMask = [&](u64 t)
 		{
