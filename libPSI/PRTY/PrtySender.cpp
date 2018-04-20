@@ -25,10 +25,10 @@ namespace osuCrypto
 		fillOneBlock(mOneBlocks);
 
 		u64 ishift = 0;
+		mTruncateBlk = ZeroBlock;
 		for (u64 i = (numSuperBlocks - 1) * 128; i < mFieldSize; i++)
 		{
-			block temp = mm_bitshift_right(OneBlock, ishift++);
-			mTruncateBlk = mTruncateBlk^temp;
+			mTruncateBlk = mTruncateBlk^mOneBlocks[ishift++];
 		}
 
 		std::vector<std::array<block, 2>> baseOtSend(128);
@@ -151,7 +151,12 @@ namespace osuCrypto
 					//=====================Compute OT row=====================
 					for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
 					{
+						std::cout << IoStream::lock;
 						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[iterRowQ], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
+
+						std::cout << IoStream::unlock;
+
+						
 						iterRowQ++;
 					}
 				}

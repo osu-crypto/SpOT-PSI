@@ -26,10 +26,10 @@ namespace osuCrypto
 		mPrng.SetSeed(prng.get<block>());
 		fillOneBlock(mOneBlocks);
 		u64 ishift = 0;
+		mTruncateBlk = ZeroBlock;
 		for (u64 i = (numSuperBlocks - 1) * 128; i < mFieldSize; i++)
 		{
-			block temp = mm_bitshift_right(OneBlock, ishift++);
-			mTruncateBlk = mTruncateBlk^temp;
+			mTruncateBlk = mTruncateBlk^mOneBlocks[ishift++];
 		}
 
 
@@ -134,8 +134,11 @@ namespace osuCrypto
 					{
 						for (u64 idx = 0; idx < it->second.size(); idx++)
 						{
+							std::cout << IoStream::lock;
 							prfOtRow(inputs[it->second[idx].mIdx], rowT[k*mBalance.mMaxBinSize + cntRows], mAesT, it->second[idx].mHashIdx);
 							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
+							std::cout << IoStream::unlock;
+
 							subIdxItems[k*mBalance.mMaxBinSize + cntRows] = it->second[idx];
 							cntRows++;
 

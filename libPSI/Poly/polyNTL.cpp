@@ -6,6 +6,8 @@
 namespace osuCrypto
 {
 
+	
+
 	polyNTL::polyNTL()
     {
     }
@@ -22,6 +24,8 @@ namespace osuCrypto
 		mNumBytes = numBytes;
 		NTL::BuildIrred(mGf2x, numBytes * 8);
 		NTL::GF2E::init(mGf2x);
+
+
 	}
 
 	void polyNTL::GF2EFromBlock(NTL::GF2E &element, block& blk, u64 size) {
@@ -116,11 +120,21 @@ namespace osuCrypto
 		//degree = setX.size() - 1;
 		NTL::vec_GF2E x; NTL::vec_GF2E y;
 		NTL::GF2E e;
+		
+		std::array<block, numSuperBlocks> xPad;
+
+#ifndef _MSC_VER
+		xPad[0] = ZeroBlock;
+		xPad[1] = ZeroBlock;
+		xPad[2] = ZeroBlock;
+		xPad[3] = ZeroBlock;
+#endif
+
 
 		for (u64 i = 0; i < setX.size(); ++i)
 		{
-			std::array<block, numSuperBlocks> xPad;
 			memcpy((u8*)&xPad[0], (u8*)&setX[i], sizeof(block));
+			//xPad[0] = setX[i];
 
 			polyNTL::GF2EFromBlocks(e, (block*)&xPad, mNumBytes);
 			x.append(e);
@@ -224,12 +238,20 @@ namespace osuCrypto
 			NTL::SetCoeff(res_polynomial, i, e); //build res_polynomial
 		}
 
+		std::array<block, numSuperBlocks> xPad;
+
+#ifndef _MSC_VER
+		xPad[0] = ZeroBlock;
+		xPad[1] = ZeroBlock;
+		xPad[2] = ZeroBlock;
+		xPad[3] = ZeroBlock;
+#endif
 
 		setY.resize(setX.size());
 		for (u64 i = 0; i < setY.size(); ++i)
 		{
-			std::array<block, numSuperBlocks> xPad;
 			memcpy((u8*)&xPad[0], (u8*)&setX[i], sizeof(block));
+			//xPad[0] = setX[i];
 
 			GF2EFromBlocks(e, (block*)&xPad, mNumBytes);
 			e = NTL::eval(res_polynomial, e); //get y=f(x) in GF2E

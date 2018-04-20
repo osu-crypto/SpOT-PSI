@@ -42,9 +42,9 @@ namespace osuCrypto
 		else if (setSize <= (1 << 18))
 			return 432;
 		else if (setSize <= (1 << 20))
-			return 446;
+			return 436;
 
-		return 446;
+		return 436;
 	}
 	
 	struct item
