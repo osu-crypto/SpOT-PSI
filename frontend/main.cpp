@@ -402,7 +402,7 @@ int main(int argc, char** argv)
 	return 0;*/
 
 
-	u64 sendSetSize = 1 << 20, recvSetSize =1<<20, numThreads=4;
+	u64 sendSetSize = 1 << 20, recvSetSize = 11041, numThreads=4;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
 	

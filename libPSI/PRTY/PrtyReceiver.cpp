@@ -37,7 +37,7 @@ namespace osuCrypto
 		BitVector baseOtChoices(128);
 		baseOtChoices.randomize(mPrng);
 		NaorPinkas baseOTs;
-		baseOTs.receive(baseOtChoices, baseOtRecv, mPrng, chls[0], 1);
+		baseOTs.receive(baseOtChoices, baseOtRecv, mPrng, chls[0], chls.size());
 
 		IknpOtExtSender sendIKNP;
 		sendIKNP.setBaseOts(baseOtRecv, baseOtChoices);

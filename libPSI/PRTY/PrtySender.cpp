@@ -33,7 +33,7 @@ namespace osuCrypto
 
 		std::vector<std::array<block, 2>> baseOtSend(128);
 		NaorPinkas baseOTs;
-		baseOTs.send(baseOtSend, mPrng, chls[0], 1);
+		baseOTs.send(baseOtSend, mPrng, chls[0], chls.size());
 
 		IknpOtExtReceiver recvIKNP;
 		recvIKNP.setBaseOts(baseOtSend);
