@@ -142,7 +142,7 @@ namespace osuCrypto
 				for (u64 k = 0; k < curStepSize; ++k)
 					totalStepRows += simple.mBins[i + k].values.size();  //i + k=bIdx, count all items;
 
-				std::vector<std::array<block, numSuperBlocks>> rowQ(curStepSize*totalStepRows);
+				std::vector<std::vector<std::array<block, numSuperBlocks>>> rowQ(curStepSize);
 
 				u64 iterSend = 0, iterRecv = 0;
 
@@ -150,10 +150,11 @@ namespace osuCrypto
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
+					rowQ[k].resize(simple.mBins[bIdx].values.size());
 					//=====================Compute OT row=====================
 					for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
 					{
-						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[iterRowQ], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
+						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[k][idx], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
 						iterRowQ++;
 					}
 				}
@@ -255,7 +256,7 @@ namespace osuCrypto
 					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 						for (int idx = 0; idx < realNumRows; idx++) {
 
-							rcvBlk = rowQ[iterRowQ + idx][j] ^ (R[idx][j] & choiceBlocks[j]); //Q+s*P
+							rcvBlk = rowQ[k][idx][j] ^ (R[idx][j] & choiceBlocks[j]); //Q+s*P
 
 							if (j == numSuperBlocks - 1)
 								rcvBlk = rcvBlk &mTruncateBlk;

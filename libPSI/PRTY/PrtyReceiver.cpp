@@ -117,27 +117,29 @@ namespace osuCrypto
 
 				std::vector<u8> sendBuff(curStepSize*mBalance.mMaxBinSize*polyMaskBytes);
 
-				std::vector<std::array<block, numSuperBlocks>> rowT(curStepSize*mBalance.mMaxBinSize);
-				std::vector<item> subIdxItems(curStepSize*mBalance.mMaxBinSize);
+				std::vector<std::vector<std::array<block, numSuperBlocks>>> rowT(curStepSize);
+				std::vector<std::vector<item>> subIdxItems(curStepSize);
 
 				u64 iterSend = 0;
 
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
+					rowT[k].resize(mBalance.mBins[bIdx].cnt);
+					subIdxItems[k].resize(mBalance.mBins[bIdx].cnt);
 
-					std::vector<std::array<block, numSuperBlocks>> rowU(mBalance.mMaxBinSize);
-					std::vector<std::array<block, numSuperBlocks>> rowR(mBalance.mMaxBinSize);
+					std::vector<std::array<block, numSuperBlocks>> rowU(mBalance.mBins[bIdx].cnt);
+					std::vector<std::array<block, numSuperBlocks>> rowR(mBalance.mBins[bIdx].cnt);
 					u64 cntRows = 0;
 					//=====================Compute OT row=====================
 					for (auto it = mBalance.mBins[bIdx].values.begin(); it != mBalance.mBins[bIdx].values.end(); ++it)
 					{
 						for (u64 idx = 0; idx < it->second.size(); idx++)
 						{
-							prfOtRow(inputs[it->second[idx].mIdx], rowT[k*mBalance.mMaxBinSize + cntRows], mAesT, it->second[idx].mHashIdx);
+							prfOtRow(inputs[it->second[idx].mIdx], rowT[k][cntRows], mAesT, it->second[idx].mHashIdx);
 							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
 
-							subIdxItems[k*mBalance.mMaxBinSize + cntRows] = it->second[idx];
+							subIdxItems[k][cntRows] = it->second[idx];
 							cntRows++;
 
 						}
@@ -146,7 +148,7 @@ namespace osuCrypto
 					//comput R=T+U
 					for (u64 idx = 0; idx < cntRows; ++idx)
 						for (u64 j = 0; j < numSuperBlocks; ++j)
-							rowR[idx][j] = rowT[k*mBalance.mMaxBinSize + idx][j] ^ rowU[idx][j];
+							rowR[idx][j] = rowT[k][idx][j] ^ rowU[idx][j];
 
 					//=====================Pack=====================
 #ifdef GF2X_Slicing
@@ -182,7 +184,7 @@ namespace osuCrypto
 					std::vector<block> X(cntRows);
 					std::vector<std::array<block, numSuperBlocks>> coeffs;
 					for (u64 idx = 0; idx < cntRows; ++idx)
-						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx].mIdx], sizeof(block));
+						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k][idx].mIdx], sizeof(block));
 
 					poly.getSuperBlksCoefficients(degree, X, rowR, coeffs);
 
@@ -248,18 +250,18 @@ namespace osuCrypto
 
 					for (u64 idx = 0; idx < realRows; ++idx)
 					{
-						item it = subIdxItems[k*mBalance.mMaxBinSize + idx];
+						item it = subIdxItems[k][idx];
 
 						cipher = ZeroBlock;
 						for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 						{
 							if (j == numSuperBlocks - 1)
 							{
-								block temp= rowT[k*mBalance.mMaxBinSize + idx][j] &mTruncateBlk;
+								block temp= rowT[k][idx][j] &mTruncateBlk;
 								cipher = mBalance.mAesHasher.ecbEncBlock(temp) ^ cipher; //compute H(Q+s*P)=xor of all slices
 							}
 							else
-								cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k*mBalance.mMaxBinSize + idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
+								cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k][idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
 						}
 
 						/*if (bIdx== bIdxForDebug && idx==iIdxForDebug)
