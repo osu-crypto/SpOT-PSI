@@ -119,6 +119,8 @@ namespace osuCrypto
 			u64 binStartIdx = simple.mNumBins * t / numThreads;
 			u64 tempBinEndIdx = (simple.mNumBins * (t + 1) / numThreads);
 			u64 binEndIdx = std::min(tempBinEndIdx, simple.mNumBins);
+			polyNTL poly;
+
 
 #ifdef GF2X_Slicing
 			poly.NtlPolyInit(sizeof(block));
@@ -151,12 +153,7 @@ namespace osuCrypto
 					//=====================Compute OT row=====================
 					for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
 					{
-						std::cout << IoStream::lock;
 						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[iterRowQ], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
-
-						std::cout << IoStream::unlock;
-
-						
 						iterRowQ++;
 					}
 				}
@@ -282,13 +279,13 @@ namespace osuCrypto
 
 					iterRowQ += realNumRows;
 
-					std::cout << IoStream::lock;
+					//std::cout << IoStream::lock;
 					for (int idx = 0; idx < localHashes.size(); idx++) {
 						u64 hashIdx = simple.mBins[bIdx].values[idx].mHashIdx;
 						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes
 							, (u8*)&localHashes[idx], hashMaskBytes);
 					}
-					std::cout << IoStream::unlock;
+					//std::cout << IoStream::unlock;
 
 				}
 

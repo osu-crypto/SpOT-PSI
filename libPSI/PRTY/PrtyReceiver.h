@@ -32,7 +32,6 @@ namespace osuCrypto
 
 		block mTruncateBlk;
 
-		polyNTL poly;
 		PRNG mPrng;
 		ZZ mPrime;
 

@@ -134,10 +134,8 @@ namespace osuCrypto
 					{
 						for (u64 idx = 0; idx < it->second.size(); idx++)
 						{
-							std::cout << IoStream::lock;
 							prfOtRow(inputs[it->second[idx].mIdx], rowT[k*mBalance.mMaxBinSize + cntRows], mAesT, it->second[idx].mHashIdx);
 							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
-							std::cout << IoStream::unlock;
 
 							subIdxItems[k*mBalance.mMaxBinSize + cntRows] = it->second[idx];
 							cntRows++;
@@ -187,6 +185,7 @@ namespace osuCrypto
 						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx].mIdx], sizeof(block));
 
 					poly.getSuperBlksCoefficients(degree, X, rowR, coeffs);
+
 
 					for (int c = 0; c < coeffs.size(); c++) {
 						memcpy(sendBuff.data() + iterSend, (u8*)&coeffs[c], polyMaskBytes);

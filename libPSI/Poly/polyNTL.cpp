@@ -134,7 +134,6 @@ namespace osuCrypto
 		for (u64 i = 0; i < setX.size(); ++i)
 		{
 			memcpy((u8*)&xPad[0], (u8*)&setX[i], sizeof(block));
-			//xPad[0] = setX[i];
 
 			polyNTL::GF2EFromBlocks(e, (block*)&xPad, mNumBytes);
 			x.append(e);
@@ -145,8 +144,6 @@ namespace osuCrypto
 
 
 		NTL::GF2EX polynomial = NTL::interpolate(x, y);
-
-		
 
 
 		if (degree > setX.size() - 1)

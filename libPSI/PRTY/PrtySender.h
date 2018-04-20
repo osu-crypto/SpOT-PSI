@@ -35,7 +35,6 @@ namespace osuCrypto {
 		block mTruncateBlk;
 
 
-		polyNTL poly;
 		PRNG mPrng;
 		
 		BitVector mOtChoices;
