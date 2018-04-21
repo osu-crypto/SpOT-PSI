@@ -55,6 +55,11 @@ namespace osuCrypto
 						
 				mBins[b1].values.push_back({ 0,idxItem });
 				mBins[b2].values.push_back({ 1,idxItem });
+
+				mBins[b1].blkValues.push_back(items[idxItem]);
+				mBins[b2].blkValues.push_back(items[idxItem]);
+
+				
 		}
 	}
 

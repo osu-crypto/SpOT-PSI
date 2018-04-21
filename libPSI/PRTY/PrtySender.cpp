@@ -146,17 +146,18 @@ namespace osuCrypto
 
 				u64 iterSend = 0, iterRecv = 0;
 
-				u64 iterRowQ = 0;
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
 					rowQ[k].resize(simple.mBins[bIdx].values.size());
 					//=====================Compute OT row=====================
-					for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
+					prfOtRows(simple.mBins[bIdx].blkValues, rowQ[k], mAesQ);
+
+					/*for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
 					{
-						prfOtRow(inputs[simple.mBins[bIdx].values[idx].mIdx], rowQ[k][idx], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
-						iterRowQ++;
-					}
+						prfOtRow(simple.mBins[bIdx].blkValues[idx], rowQ[k][idx], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
+					}*/
+
 				}
 				std::vector<u8> recvBuff;
 				chl.recv(recvBuff); //receive Poly
@@ -170,7 +171,6 @@ namespace osuCrypto
 					}*/
 
 					//=====================Unpack=====================
-				iterRowQ = 0;
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
@@ -276,9 +276,6 @@ namespace osuCrypto
 							<< " hIdx " << simple.mBins[bIdx].values[iIdxForDebug].mHashIdx 
 							<<" idxPer " << idxPermuteDoneforDebug << "\n";
 					}*/
-
-
-					iterRowQ += realNumRows;
 
 					//std::cout << IoStream::lock;
 					for (int idx = 0; idx < localHashes.size(); idx++) {

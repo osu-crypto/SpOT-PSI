@@ -16,6 +16,8 @@ namespace osuCrypto
 			std::unordered_map<u64, std::vector<item>> values; //<IdxAlterBin, index of items which have this alter bin>
 			std::vector<u64> lightBins; //index of alternative light Bins
 			u64 cnt;
+			std::vector<block> blkValues; //index of alternative light Bins
+
 		};
 
 

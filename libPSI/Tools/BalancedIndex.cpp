@@ -190,6 +190,20 @@ namespace osuCrypto
 			//std::cout << "\n";
 		}
 		//check();
+
+
+		for (u64 idxBin = 0; idxBin < mNumBins; ++idxBin)
+		{
+			for (auto it = mBins[idxBin].values.begin(); it != mBins[idxBin].values.end(); ++it)//for each bin, list all alter light bins
+			{
+				for (u64 idx = 0; idx < it->second.size(); idx++)
+				{
+					mBins[idxBin].blkValues.push_back(items[it->second[idx].mIdx]);
+
+				}
+			}
+
+		}
 		
 }
 

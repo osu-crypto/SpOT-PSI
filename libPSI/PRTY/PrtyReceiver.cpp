@@ -132,12 +132,17 @@ namespace osuCrypto
 					std::vector<std::array<block, numSuperBlocks>> rowR(mBalance.mBins[bIdx].cnt);
 					u64 cntRows = 0;
 					//=====================Compute OT row=====================
+					
+					prfOtRows(mBalance.mBins[bIdx].blkValues, rowT[k], mAesT);
+					prfOtRows(mBalance.mBins[bIdx].blkValues, rowU, mAesU);
+
+					
 					for (auto it = mBalance.mBins[bIdx].values.begin(); it != mBalance.mBins[bIdx].values.end(); ++it)
 					{
 						for (u64 idx = 0; idx < it->second.size(); idx++)
 						{
-							prfOtRow(inputs[it->second[idx].mIdx], rowT[k][cntRows], mAesT, it->second[idx].mHashIdx);
-							prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
+							//prfOtRow(inputs[it->second[idx].mIdx], rowT[k][cntRows], mAesT, it->second[idx].mHashIdx);
+							//prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
 
 							subIdxItems[k][cntRows] = it->second[idx];
 							cntRows++;

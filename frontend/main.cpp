@@ -460,8 +460,8 @@ void prfOtRow_Test_Impl()
 
 	std::array<block, numSuperBlocks> rowQ;
 	block x = prng0.get<block>();
-	int numTrials = 1 << 20;
-	int binSize = 1 << 10;
+	int numTrials = 1 << 10;
+	int binSize = 1 << 5;
 
 
 	std::vector<AES> mAesQ(436);
@@ -486,7 +486,7 @@ void prfOtRow_Test_Impl()
 	gTimer.reset();
 	gTimer.setTimePoint("start");
 	for (int iTrial = 0; iTrial < numTrials / binSize; ++iTrial)
-		prfOtRows((block*)&X, X.size(), rowsQ, mAesQ);
+		prfOtRows(X, rowsQ, mAesQ);
 	gTimer.setTimePoint("prfOtRow end");
 
 
@@ -498,6 +498,9 @@ void prfOtRow_Test_Impl()
 
 int main(int argc, char** argv)
 {
+
+	/*prfOtRow_Test_Impl();
+	return 0; */
 	/*Poly_Test_Impl();
 	return 0;*/
 	
@@ -506,7 +509,7 @@ int main(int argc, char** argv)
 	return 0;*/
 
 
-	u64 sendSetSize = 1 << 12, recvSetSize = 1<<10, numThreads=4;
+	u64 sendSetSize = 1 << 20, recvSetSize = 1<<20, numThreads=1;
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
 	
@@ -523,7 +526,7 @@ int main(int argc, char** argv)
 	}
 
 	
-#if 1
+#if 0
 	std::thread thrd = std::thread([&]() {
 		Sender(sendSet, recvSetSize, numThreads);
 

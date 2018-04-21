@@ -80,17 +80,17 @@ namespace osuCrypto
 			blks[i] = mm_bitshift_right(OneBlock, i);
 	}
 
-	static void prfOtRows(block* inputs, u64 inputSize, std::vector<std::array<block, numSuperBlocks>>& outputs, std::vector<AES> arrAes)
+	static void prfOtRows(std::vector<block> inputs,  std::vector<std::array<block, numSuperBlocks>>& outputs, std::vector<AES> arrAes)
 	{
-		std::vector<block> ciphers(inputSize);
-		outputs.resize(inputSize);
+		std::vector<block> ciphers(inputs.size());
+		outputs.resize(inputs.size());
 
 		for (int j = 0; j < numSuperBlocks - 1; ++j) //1st 3 blocks
 			for (int i = 0; i < 128; ++i) //for each column
 			{
-				arrAes[j * 128 + i].ecbEncBlocks(inputs, inputSize, ciphers.data()); //do many aes at the same time for efficeincy
+				arrAes[j * 128 + i].ecbEncBlocks((block*)&inputs, inputs.size(), ciphers.data()); //do many aes at the same time for efficeincy
 
-				for (u64 idx = 0; idx < inputSize; idx++)
+				for (u64 idx = 0; idx < inputs.size(); idx++)
 				{
 					ciphers[idx] = ciphers[idx]&mOneBlocks[i];
 					outputs[idx][j] = outputs[idx][j] ^ ciphers[idx];
@@ -102,8 +102,8 @@ namespace osuCrypto
 		for (int i = 0; i < 128; ++i)
 		{
 			if (j * 128 + i < arrAes.size()) {
-				arrAes[j * 128 + i].ecbEncBlocks(inputs, inputSize, ciphers.data()); //do many aes at the same time for efficeincy
-				for (u64 idx = 0; idx < inputSize; idx++)
+				arrAes[j * 128 + i].ecbEncBlocks((block*)&inputs, inputs.size(), ciphers.data()); //do many aes at the same time for efficeincy
+				for (u64 idx = 0; idx < inputs.size(); idx++)
 				{
 					ciphers[idx] = ciphers[idx] & mOneBlocks[i];
 					outputs[idx][j] = outputs[idx][j] ^ ciphers[idx];

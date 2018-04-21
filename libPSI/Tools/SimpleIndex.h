@@ -16,6 +16,7 @@ namespace osuCrypto
 		struct Bin
 		{
 			std::vector<item> values; //index of items
+			std::vector<block> blkValues;
 		};
 
 
