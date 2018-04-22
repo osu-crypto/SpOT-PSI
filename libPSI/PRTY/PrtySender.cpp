@@ -4,7 +4,6 @@
 #include <cryptoTools/Network/Channel.h>
 #include <cryptoTools/Common/Timer.h>
 #include "libOTe/Base/naor-pinkas.h"
-#include "Tools/SimpleIndex.h"
 #include <unordered_map>
 
 namespace osuCrypto
@@ -100,7 +99,6 @@ namespace osuCrypto
 
 
 		//=====================Balaced Allocation=====================
-		SimpleIndex simple;
 		//gTimer.reset();
 		//gTimer.setTimePoint("start");
 		simple.init(mTheirInputSize, recvMaxBinSize, recvNumDummies);
@@ -137,11 +135,6 @@ namespace osuCrypto
 			for (u64 i = binStartIdx; i < binEndIdx; i += stepSize)
 			{
 				auto curStepSize = std::min(stepSize, binEndIdx - i);
-
-				u64 totalStepRows=0;
-				for (u64 k = 0; k < curStepSize; ++k)
-					totalStepRows += simple.mBins[i + k].values.size();  //i + k=bIdx, count all items;
-
 				std::vector<std::vector<std::array<block, numSuperBlocks>>> rowQ(curStepSize);
 
 				u64 iterSend = 0, iterRecv = 0;
@@ -153,12 +146,8 @@ namespace osuCrypto
 					//=====================Compute OT row=====================
 					prfOtRows(simple.mBins[bIdx].blkValues, rowQ[k], mAesQ);
 
-					/*for (u64 idx = 0; idx < simple.mBins[bIdx].values.size(); idx++)
-					{
-						prfOtRow(simple.mBins[bIdx].blkValues[idx], rowQ[k][idx], mAesQ, simple.mBins[bIdx].values[idx].mHashIdx);
-					}*/
-
 				}
+
 				std::vector<u8> recvBuff;
 				chl.recv(recvBuff); //receive Poly
 		/*			if (recvBuff.size() != curStepSize*simple.mTheirMaxBinSize*polyMaskBytes);
@@ -175,9 +164,9 @@ namespace osuCrypto
 				{
 					u64 bIdx = i + k;
 					u64 realNumRows = simple.mBins[bIdx].values.size();
-					std::vector<block> localHashes(realNumRows);
 					
 #ifdef GF2X_Slicing
+					std::vector<block> localHashes(realNumRows);
 					u64 degree = simple.mTheirMaxBinSize - 1;
 					std::vector<block> X(realNumRows), R(realNumRows), coeffs(degree+1); //
 					block rcvBlk;
@@ -226,20 +215,17 @@ namespace osuCrypto
 
 #else
 					u64 degree = simple.mTheirMaxBinSize - 1;
-					std::vector<block> X(realNumRows);
 					std::vector<std::array<block, numSuperBlocks>> R(realNumRows), coeffs(degree + 1); //
 					block rcvBlk;
 
-					for (u64 idx = 0; idx < realNumRows; ++idx)
-						memcpy((u8*)&X[idx], (u8*)&inputs[simple.mBins[bIdx].values[idx].mIdx], sizeof(block));
-
+					
 					for (int c = 0; c < coeffs.size(); c++)
 					{
 						memcpy((u8*)&coeffs[c], recvBuff.data() + iterSend, polyMaskBytes);
 						iterSend += polyMaskBytes;
 					}
 
-					poly.evalSuperPolynomial(coeffs, X, R);
+					poly.evalSuperPolynomial(coeffs, simple.mBins[bIdx].blkValues, R);
 
 					//if (bIdx == 2)
 					//{
@@ -253,18 +239,29 @@ namespace osuCrypto
 					//}
 
 
-					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-						for (int idx = 0; idx < realNumRows; idx++) {
+					std::array<block, numSuperBlocks> recvRowT;
+					std::vector<block> cipher(4);
 
-							rcvBlk = rowQ[k][idx][j] ^ (R[idx][j] & choiceBlocks[j]); //Q+s*P
+					for (int idx = 0; idx < realNumRows; idx++) {
+						for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+						{
+							recvRowT[j] = rowQ[k][idx][j] ^ (R[idx][j] & choiceBlocks[j]); //Q+s*P
 
-							if (j == numSuperBlocks - 1)
-								rcvBlk = rcvBlk &mTruncateBlk;
-							
-							localHashes[idx] = simple.mAesHasher.ecbEncBlock(rcvBlk) ^ localHashes[idx]; //compute H(Q+s*P)=xor of all slices
+							if (j == numSuperBlocks - 1) //get last 440-3*128 bits
+								recvRowT[j] = recvRowT[j] & mTruncateBlk;
 						}
 
+						simple.mAesHasher.ecbEncFourBlocks(recvRowT.data(), cipher.data());
 
+						for (u64 j = 1; j < numSuperBlocks; ++j)
+							cipher[0] = cipher[0] ^ cipher[j];
+						
+						u64 hashIdx = simple.mBins[bIdx].values[idx].mHashIdx;
+						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes
+							, (u8*)&cipher[0], hashMaskBytes);
+
+					}
+					
 
 #endif
 					/*if (bIdx == bIdxForDebug)
@@ -276,14 +273,6 @@ namespace osuCrypto
 							<< " hIdx " << simple.mBins[bIdx].values[iIdxForDebug].mHashIdx 
 							<<" idxPer " << idxPermuteDoneforDebug << "\n";
 					}*/
-
-					//std::cout << IoStream::lock;
-					for (int idx = 0; idx < localHashes.size(); idx++) {
-						u64 hashIdx = simple.mBins[bIdx].values[idx].mHashIdx;
-						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes
-							, (u8*)&localHashes[idx], hashMaskBytes);
-					}
-					//std::cout << IoStream::unlock;
 
 				}
 

@@ -14,6 +14,7 @@
 #include <NTL/ZZ_pX.h>
 #include <NTL/ZZ.h>
 #include "Poly/polyFFT.h"
+#include "Tools/SimpleIndex.h"
 
 #include <array>
 namespace osuCrypto {
@@ -22,7 +23,8 @@ namespace osuCrypto {
 	{
 	public:
 
-		
+		SimpleIndex simple;
+
 		bool mHasBase;
 
 		u64 mMyInputSize, mTheirInputSize, mPolyNumBytes, mPolyDegree, mStepSize, mPsiSecParam;

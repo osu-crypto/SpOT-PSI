@@ -458,11 +458,13 @@ void prfOtRow_Test_Impl()
 {
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
+
+
 	std::array<block, numSuperBlocks> rowQ;
 	block x = prng0.get<block>();
-	int numTrials = 1 << 10;
-	int binSize = 1 << 5;
-
+	int setSize = 1 << 12;
+	int binSize = 40;
+	int numBin = (setSize + 39) / binSize;
 
 	std::vector<AES> mAesQ(436);
 	for (u64 i = 0; i < mAesQ.size(); i++)
@@ -471,24 +473,60 @@ void prfOtRow_Test_Impl()
 		mAesQ[i].setKey(x);
 	}
 
-	gTimer.reset();
-	gTimer.setTimePoint("start");
-	for (int iTrial = 0; iTrial < numTrials; ++iTrial)
-		prfOtRow(x, rowQ, mAesQ);
-	gTimer.setTimePoint("prfOtRow end");
-
-	std::vector<std::array<block, numSuperBlocks>> rowsQ(binSize);
-	std::vector<block> X(binSize);
-
+	std::vector<std::vector<std::array<block, numSuperBlocks>>> rowsQ1(numBin);
+	std::vector<std::vector<std::array<block, numSuperBlocks>>> rowsQ2(numBin);
+	std::vector<std::vector<block>> X(numBin);
 	for (u64 i = 0; i < X.size(); i++)
-		X[i] = prng0.get<block>();
+	{
+		X[i].resize(binSize);
+		rowsQ1[i].resize(binSize);
+		rowsQ2[i].resize(binSize);
+		for (u64 j = 0; j < X[i].size(); j++)
+			X[i][j] = prng0.get<block>();
+	}
+
 
 	gTimer.reset();
 	gTimer.setTimePoint("start");
-	for (int iTrial = 0; iTrial < numTrials / binSize; ++iTrial)
-		prfOtRows(X, rowsQ, mAesQ);
+	for (u64 i = 0; i < numBin; i++)
+	{
+		for (u64 j = 0; j < binSize; j++)
+			prfOtRow(X[i][j], rowsQ1[i][j], mAesQ);
+	}
 	gTimer.setTimePoint("prfOtRow end");
+	std::cout << gTimer << std::endl;
 
+
+
+	gTimer.reset();
+	gTimer.setTimePoint("start");
+	for (u64 i = 0; i < numBin; i++)
+		prfOtRows(X[i], rowsQ2[i], mAesQ);
+	gTimer.setTimePoint("numBin end");
+	std::cout << gTimer << std::endl;
+
+	for (u64 i = 0; i < numBin; i++)
+	{
+		for (u64 j = 0; j < binSize; j++)
+			for (u64 k = 0; k < numSuperBlocks; j++)
+				std::cout << rowsQ2[i][j][k] << "\t" << rowsQ1[i][j][k] << std::endl;
+
+	}
+
+
+	//rowsQ.resize(setSize);
+	//X.resize(setSize);
+
+	//for (u64 i = 0; i < X.size(); i++)
+	//	X[i] = prng0.get<block>();
+
+	//gTimer.reset();
+	//gTimer.setTimePoint("start");
+	//std::vector<block> ciphers(X.size());
+	//mAesQ[0].ecbEncBlocks((block*)&X, X.size(), ciphers.data()); //do many aes at the same time for efficeincy
+
+	////prfOtRows(X, rowsQ, mAesQ);
+	//gTimer.setTimePoint("setSize end");
 
 
 	std::cout << gTimer << std::endl;
@@ -498,6 +536,8 @@ void prfOtRow_Test_Impl()
 
 int main(int argc, char** argv)
 {
+	/*prfOtRow_Test_Impl();
+	return 0;*/
 
 	/*prfOtRow_Test_Impl();
 	return 0; */

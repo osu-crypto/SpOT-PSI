@@ -53,11 +53,11 @@ namespace osuCrypto
 			b1 = _mm_extract_epi64(cipher, 0) % mNumBins; //1st 64 bits for finding bin location
 			b2 = _mm_extract_epi64(cipher, 1) % mNumBins; //2nd 64 bits for finding alter bin location
 						
-				mBins[b1].values.push_back({ 0,idxItem });
-				mBins[b2].values.push_back({ 1,idxItem });
+			mBins[b1].values.push_back({ 0,idxItem });
+			mBins[b2].values.push_back({ 1,idxItem });
 
-				mBins[b1].blkValues.push_back(items[idxItem]);
-				mBins[b2].blkValues.push_back(items[idxItem]);
+			mBins[b1].blkValues.push_back(items[idxItem]);
+			mBins[b2].blkValues.push_back(items[idxItem]^OneBlock);
 
 				
 		}

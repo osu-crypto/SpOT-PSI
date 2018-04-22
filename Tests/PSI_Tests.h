@@ -9,5 +9,5 @@ namespace tests_libOTe
 	void seft_balance();
 	void Poly_Test_Impl();
 	void Prty_PSI_impl();
-
+	void prfOtRow_Test_Impl();
 }

@@ -142,19 +142,15 @@ namespace osuCrypto
 			y.append(e);
 		}
 
+		for (u64 i = setX.size(); i <= degree; ++i)//pad dummy
+		{
+			NTL::random(e);
+			x.append(e);
+			NTL::random(e);
+			y.append(e);
+		}
 
 		NTL::GF2EX polynomial = NTL::interpolate(x, y);
-
-
-		if (degree > setX.size() - 1)
-		{
-			NTL::GF2EX root_polynomial;
-			NTL::BuildFromRoots(root_polynomial, x);
-			NTL::GF2EX dummy_polynomial;
-			NTL::random(dummy_polynomial, degree - setX.size() + 1);
-			NTL::GF2EX d_polynomial;
-			polynomial = polynomial + dummy_polynomial*root_polynomial;
-		}
 
 		coeffs.resize(NTL::deg(polynomial) + 1);
 		for (int i = 0; i <= NTL::deg(polynomial); i++) {

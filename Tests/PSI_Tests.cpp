@@ -395,6 +395,103 @@ namespace tests_libOTe
 #endif
 	}
 
+	void prfOtRow_Test_Impl()
+	{
+		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+
+		fillOneBlock(mOneBlocks);
+
+		std::array<block, numSuperBlocks> rowQ;
+		block x = prng0.get<block>();
+		int setSize = 1 << 10;
+		int binSize = 40;
+		int numBin = (setSize + 39) / binSize;
+
+		std::vector<AES> mAesQ(436);
+		for (u64 i = 0; i < mAesQ.size(); i++)
+		{
+			x = prng0.get<block>();
+			mAesQ[i].setKey(x);
+		}
+
+		std::vector<std::vector<std::array<block, numSuperBlocks>>> rowsQ1(numBin);
+		std::vector<std::vector<std::array<block, numSuperBlocks>>> rowsQ2(numBin);
+		std::vector<std::vector<block>> X(numBin);
+		for (u64 i = 0; i < X.size(); i++)
+		{
+			X[i].resize(binSize);
+			rowsQ1[i].resize(binSize);
+			rowsQ2[i].resize(binSize);
+			for (u64 j = 0; j < X[i].size(); j++)
+				X[i][j] = prng0.get<block>();
+		}
+
+
+		gTimer.reset();
+		gTimer.setTimePoint("start");
+		for (u64 i = 0; i < numBin; i++)
+		{
+			for (u64 j = 0; j < binSize; j++)
+				prfOtRow(X[i][j], rowsQ1[i][j], mAesQ);
+		}
+		gTimer.setTimePoint("prfOtRow end");
+		std::cout << gTimer << std::endl;
+
+
+
+		gTimer.reset();
+		gTimer.setTimePoint("start");
+		for (u64 i = 0; i < numBin; i++)
+			prfOtRows(X[i], rowsQ2[i], mAesQ);
+		gTimer.setTimePoint("numBin end");
+		std::cout << gTimer << std::endl;
+
+	//	block* mIter = X[0].data();
+
+		std::vector<block> ciphers(2);
+		mAesQ[0].ecbEncBlocks(X[0].data(), 2, ciphers.data()); //do many aes at the same time for efficeincy
+		std::cout << ciphers[0] << "\t" << ciphers[1] << std::endl;
+
+		//mAesQ[0].ecbEncTwoBlocks(X[0].data(), ciphers.data()); //do many aes at the same time for efficeincy
+		//std::cout << ciphers[0] << "\t" << ciphers[1] << std::endl;
+
+		block cipher;
+		mAesQ[0].ecbEncBlock(X[0][0], cipher);
+		std::cout << cipher << "\t" ;
+		mAesQ[0].ecbEncBlock(X[0][1], cipher);
+		std::cout << cipher <<  std::endl;
+
+
+
+		for (u64 i = 0; i < numBin; i++)
+		{
+			for (u64 j = 0; j < binSize; j++)
+				for (u64 k = 0; k < numSuperBlocks; k++)
+					std::cout << rowsQ2[i][j][k] << "\t" << rowsQ1[i][j][k] << std::endl;
+
+		}
+
+
+		//rowsQ.resize(setSize);
+		//X.resize(setSize);
+
+		//for (u64 i = 0; i < X.size(); i++)
+		//	X[i] = prng0.get<block>();
+
+		//gTimer.reset();
+		//gTimer.setTimePoint("start");
+		//std::vector<block> ciphers(X.size());
+		//mAesQ[0].ecbEncBlocks((block*)&X, X.size(), ciphers.data()); //do many aes at the same time for efficeincy
+
+		////prfOtRows(X, rowsQ, mAesQ);
+		//gTimer.setTimePoint("setSize end");
+
+
+		std::cout << gTimer << std::endl;
+
+	}
+
+
 
 	void Prty_PSI_impl()
 	{
@@ -439,16 +536,47 @@ namespace tests_libOTe
 		
 		fillOneBlock(mOneBlocks);
 
+		u64 binSize = 40;
+		std::vector<block> X(binSize);
+		std::vector<std::array<block, numSuperBlocks>> rowT(binSize);
+		std::vector<std::array<block, numSuperBlocks>> rowU(binSize);
+		std::vector<std::array<block, numSuperBlocks>> rowQ(binSize);
+		for (u64 i = 0; i < X.size(); i++)
+			X[i] = prng0.get<block>();
+
 		auto thrd = std::thread([&]() {
 			recv.init(recvSet.size(), sendSet.size(), 40, prng1 , recvChls);
 			recv.output(recvSet, recvChls);
+
+			/*prfOtRows(X, rowT, recv.mAesT);
+			prfOtRows(X, rowU, recv.mAesU);*/
+
+			/*for (u64 i = 0; i < binSize; ++i)
+			{
+				prfOtRow(X[i], rowT[i], recv.mAesT);
+				prfOtRow(X[i], rowU[i], recv.mAesU);
+			}*/
 
 		});
 		
 		sender.init(sendSet.size(), recvSet.size(), 40, prng0,  sendChls);
 		sender.output(sendSet, sendChls);
+		//prfOtRows(X, rowQ, sender.mAesQ);
+
+		/*for (u64 i = 0; i < binSize; ++i)
+			prfOtRow(X[i], rowQ[i], sender.mAesQ);*/
 		
 		thrd.join();
+
+		//auto choiceBlocks = sender.mOtChoices.getSpan<block>(); //s
+
+		//for (u64 i = 0; i < binSize; ++i)
+		//	for (u64 j	 = 0; j	 < numSuperBlocks; ++j)
+		//	{
+		//		block rcvBlk = rowQ[i][j] ^ ((rowT[i][j]^rowU[i][j]) & choiceBlocks[j]); //Q+s*P
+		//		std::cout << rcvBlk << "\t" << rowT[i][j] << std::endl;
+
+		//	}
 
 
 		std::cout << "recv.mIntersection.size(): " << recv.mIntersection.size() << std::endl;
