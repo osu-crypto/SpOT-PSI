@@ -54,6 +54,7 @@ namespace osuCrypto
 			block temp = mm_bitshift_left(OneBlock, i);
 		}
 
+		simple.init(mTheirInputSize, recvMaxBinSize, recvNumDummies);
 
 		
 //#ifdef NTL_Threads_ON
@@ -101,7 +102,6 @@ namespace osuCrypto
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
 		//gTimer.setTimePoint("start");
-		simple.init(mTheirInputSize, recvMaxBinSize, recvNumDummies);
 		simple.insertItems(inputs);
 		//gTimer.setTimePoint("balanced");
 		//std::cout << gTimer << std::endl;
@@ -142,9 +142,9 @@ namespace osuCrypto
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
-					rowQ[k].resize(simple.mBins[bIdx].values.size());
+					rowQ[k].resize(simple.mBins[bIdx].blks.size());
 					//=====================Compute OT row=====================
-					prfOtRows(simple.mBins[bIdx].blkValues, rowQ[k], mAesQ);
+					prfOtRows(simple.mBins[bIdx].blks, rowQ[k], mAesQ);
 
 				}
 
@@ -163,7 +163,7 @@ namespace osuCrypto
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
-					u64 realNumRows = simple.mBins[bIdx].values.size();
+					u64 realNumRows = simple.mBins[bIdx].blks.size();
 					
 #ifdef GF2X_Slicing
 					std::vector<block> localHashes(realNumRows);
@@ -225,7 +225,7 @@ namespace osuCrypto
 						iterSend += polyMaskBytes;
 					}
 
-					poly.evalSuperPolynomial(coeffs, simple.mBins[bIdx].blkValues, R);
+					poly.evalSuperPolynomial(coeffs, simple.mBins[bIdx].blks, R);
 
 					//if (bIdx == 2)
 					//{
@@ -256,7 +256,7 @@ namespace osuCrypto
 						for (u64 j = 1; j < numSuperBlocks; ++j)
 							cipher[0] = cipher[0] ^ cipher[j];
 						
-						u64 hashIdx = simple.mBins[bIdx].values[idx].mHashIdx;
+						u64 hashIdx = simple.mBins[bIdx].hashIdxs[idx];
 						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] * hashMaskBytes
 							, (u8*)&cipher[0], hashMaskBytes);
 

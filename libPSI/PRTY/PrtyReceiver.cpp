@@ -53,6 +53,9 @@ namespace osuCrypto
 		}
 
 
+		mBalance.init(mMyInputSize, recvMaxBinSize, recvNumDummies);
+
+
 
 //#ifdef NTL_Threads_ON
 //		GenGermainPrime(mPrime, primeLong);
@@ -75,7 +78,6 @@ namespace osuCrypto
 
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
-		mBalance.init(mMyInputSize, recvMaxBinSize, recvNumDummies);
 		mBalance.insertItems(inputs);
 		gTimer.setTimePoint("binning");
 		//std::cout << gTimer << std::endl;
@@ -116,7 +118,6 @@ namespace osuCrypto
 				std::vector<u8> sendBuff(curStepSize*mBalance.mMaxBinSize*polyMaskBytes);
 
 				std::vector<std::vector<std::array<block, numSuperBlocks>>> rowT(curStepSize);
-				std::vector<std::vector<item>> subIdxItems(curStepSize);
 
 				u64 iterSend = 0;
 
@@ -138,6 +139,7 @@ namespace osuCrypto
 
 					//=====================Pack=====================
 #ifdef GF2X_Slicing
+					std::vector<std::vector<item>> subIdxItems(curStepSize);
 					u64 degree = mBalance.mMaxBinSize - 1;
 					std::vector<block> X(cntRows), Y(cntRows), coeffs;
 					for (u64 idx = 0; idx < cntRows; ++idx)
