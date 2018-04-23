@@ -17,7 +17,8 @@ using namespace NTL;
 
 namespace osuCrypto
 {
-	static const u64 stepSize(1<<6);
+	static const u64 stepSize(1 << 8);
+	static const u64 stepSizeMaskSent(1<<11);
 	static const u8 numSuperBlocks(4); //wide of T (or field size)
 	static const u64 recvNumDummies(1);
 	static const u64 recvMaxBinSize(40);
@@ -80,7 +81,7 @@ namespace osuCrypto
 			blks[i] = mm_bitshift_right(OneBlock, i);
 	}
 
-	static void prfOtRows(std::vector<block> inputs,  std::vector<std::array<block, numSuperBlocks>>& outputs, std::vector<AES> arrAes)
+	static void prfOtRows(std::vector<block>& inputs,  std::vector<std::array<block, numSuperBlocks>>& outputs, std::vector<AES>& arrAes)
 	{
 		std::vector<block> ciphers(inputs.size());
 		outputs.resize(inputs.size());
@@ -88,7 +89,7 @@ namespace osuCrypto
 		for (int j = 0; j < numSuperBlocks - 1; ++j) //1st 3 blocks
 			for (int i = 0; i < 128; ++i) //for each column
 			{
-				arrAes[j * 128 + i].ecbEncBlocks((block*)&inputs, inputs.size(), ciphers.data()); //do many aes at the same time for efficeincy
+				arrAes[j * 128 + i].ecbEncBlocks(inputs.data(), inputs.size(), ciphers.data()); //do many aes at the same time for efficeincy
 
 				for (u64 idx = 0; idx < inputs.size(); idx++)
 				{
@@ -99,19 +100,15 @@ namespace osuCrypto
 
 		
 		int j = numSuperBlocks - 1;
-		for (int i = 0; i < 128; ++i)
+		for (int i = j * 128; i < arrAes.size(); ++i)
 		{
-			if (j * 128 + i < arrAes.size()) {
-				arrAes[j * 128 + i].ecbEncBlocks((block*)&inputs, inputs.size(), ciphers.data()); //do many aes at the same time for efficeincy
+				arrAes[i].ecbEncBlocks(inputs.data(), inputs.size(), ciphers.data()); //do many aes at the same time for efficeincy
 				for (u64 idx = 0; idx < inputs.size(); idx++)
 				{
-					ciphers[idx] = ciphers[idx] & mOneBlocks[i];
+					ciphers[idx] = ciphers[idx] & mOneBlocks[i-j*128];
 					outputs[idx][j] = outputs[idx][j] ^ ciphers[idx];
 				}
-			}
-			else {
-				break;
-			}
+			
 		}
 
 	}
@@ -151,9 +148,9 @@ namespace osuCrypto
 			}
 		}
 
-		/*std::cout << IoStream::lock;
-		std::cout << "\t output " << output[0] << "\n";
-		std::cout << IoStream::unlock;*/
+		//std::cout << IoStream::lock;
+		//std::cout << "\t output " << output[0] << "\n";
+		//std::cout << IoStream::unlock;
 
 	}
 

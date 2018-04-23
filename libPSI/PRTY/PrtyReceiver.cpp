@@ -5,7 +5,6 @@
 #include <cryptoTools/Crypto/PRNG.h>
 #include <cryptoTools/Crypto/Commit.h>
 #include <cryptoTools/Network/Channel.h>
-#include "Tools/BalancedIndex.h"
 #include "libOTe/TwoChooseOne/IknpOtExtSender.h"
 #include "Poly/polyFFT.h"
 
@@ -54,6 +53,9 @@ namespace osuCrypto
 		}
 
 
+		mBalance.init(mMyInputSize, recvMaxBinSize, recvNumDummies);
+
+
 
 //#ifdef NTL_Threads_ON
 //		GenGermainPrime(mPrime, primeLong);
@@ -76,10 +78,8 @@ namespace osuCrypto
 
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
-		BalancedIndex mBalance;
-		mBalance.init(mMyInputSize, recvMaxBinSize, recvNumDummies);
 		mBalance.insertItems(inputs);
-		gTimer.setTimePoint("binning");
+		gTimer.setTimePoint("r_binning");
 		//std::cout << gTimer << std::endl;
 		
 	/*	std::cout << IoStream::lock;
@@ -118,7 +118,6 @@ namespace osuCrypto
 				std::vector<u8> sendBuff(curStepSize*mBalance.mMaxBinSize*polyMaskBytes);
 
 				std::vector<std::vector<std::array<block, numSuperBlocks>>> rowT(curStepSize);
-				std::vector<std::vector<item>> subIdxItems(curStepSize);
 
 				u64 iterSend = 0;
 
@@ -126,37 +125,21 @@ namespace osuCrypto
 				{
 					u64 bIdx = i + k;
 					rowT[k].resize(mBalance.mBins[bIdx].cnt);
-					subIdxItems[k].resize(mBalance.mBins[bIdx].cnt);
-
 					std::vector<std::array<block, numSuperBlocks>> rowU(mBalance.mBins[bIdx].cnt);
 					std::vector<std::array<block, numSuperBlocks>> rowR(mBalance.mBins[bIdx].cnt);
-					u64 cntRows = 0;
+
 					//=====================Compute OT row=====================
-					
-					prfOtRows(mBalance.mBins[bIdx].blkValues, rowT[k], mAesT);
-					prfOtRows(mBalance.mBins[bIdx].blkValues, rowU, mAesU);
-
-					
-					for (auto it = mBalance.mBins[bIdx].values.begin(); it != mBalance.mBins[bIdx].values.end(); ++it)
-					{
-						for (u64 idx = 0; idx < it->second.size(); idx++)
-						{
-							//prfOtRow(inputs[it->second[idx].mIdx], rowT[k][cntRows], mAesT, it->second[idx].mHashIdx);
-							//prfOtRow(inputs[it->second[idx].mIdx], rowU[cntRows], mAesU, it->second[idx].mHashIdx);
-
-							subIdxItems[k][cntRows] = it->second[idx];
-							cntRows++;
-
-						}
-					}
+					prfOtRows(mBalance.mBins[bIdx].blks, rowT[k], mAesT);
+					prfOtRows(mBalance.mBins[bIdx].blks, rowU, mAesU);
 
 					//comput R=T+U
-					for (u64 idx = 0; idx < cntRows; ++idx)
+					for (u64 idx = 0; idx < mBalance.mBins[bIdx].cnt; ++idx)
 						for (u64 j = 0; j < numSuperBlocks; ++j)
 							rowR[idx][j] = rowT[k][idx][j] ^ rowU[idx][j];
 
 					//=====================Pack=====================
 #ifdef GF2X_Slicing
+					std::vector<std::vector<item>> subIdxItems(curStepSize);
 					u64 degree = mBalance.mMaxBinSize - 1;
 					std::vector<block> X(cntRows), Y(cntRows), coeffs;
 					for (u64 idx = 0; idx < cntRows; ++idx)
@@ -186,12 +169,9 @@ namespace osuCrypto
 					}
 #else
 					u64 degree = mBalance.mMaxBinSize - 1;
-					std::vector<block> X(cntRows);
 					std::vector<std::array<block, numSuperBlocks>> coeffs;
-					for (u64 idx = 0; idx < cntRows; ++idx)
-						memcpy((u8*)&X[idx], (u8*)&inputs[subIdxItems[k][idx].mIdx], sizeof(block));
-
-					poly.getSuperBlksCoefficients(degree, X, rowR, coeffs);
+					
+					poly.getSuperBlksCoefficients(degree, mBalance.mBins[bIdx].blks, rowR, coeffs);
 
 
 					for (int c = 0; c < coeffs.size(); c++) {
@@ -247,27 +227,18 @@ namespace osuCrypto
 				sendBuff.clear();
 
 #if 1
-				block cipher;
+				std::vector<block> cipher(4);
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
 					u64 bIdx = i + k;
-					u64 realRows = mBalance.mBins[i + k].cnt;
 
-					for (u64 idx = 0; idx < realRows; ++idx)
+					for (u64 idx = 0; idx < mBalance.mBins[bIdx].cnt; ++idx)
 					{
-						item it = subIdxItems[k][idx];
-
-						cipher = ZeroBlock;
-						for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-						{
-							if (j == numSuperBlocks - 1)
-							{
-								block temp= rowT[k][idx][j] &mTruncateBlk;
-								cipher = mBalance.mAesHasher.ecbEncBlock(temp) ^ cipher; //compute H(Q+s*P)=xor of all slices
-							}
-							else
-								cipher = mBalance.mAesHasher.ecbEncBlock(rowT[k][idx][j]) ^ cipher; //compute H(Q+s*P)=xor of all slices
-						}
+						rowT[k][idx][numSuperBlocks-1] = rowT[k][idx][numSuperBlocks - 1] & mTruncateBlk; //get last 440-3*128 bits
+						mBalance.mAesHasher.ecbEncFourBlocks(rowT[k][idx].data(), cipher.data());
+				
+						for (u64 j = 1; j < numSuperBlocks; ++j)
+							cipher[0] = cipher[0] ^ cipher[j];
 
 						/*if (bIdx== bIdxForDebug && idx==iIdxForDebug)
 						{
@@ -275,9 +246,21 @@ namespace osuCrypto
 							recvMaskForDebug = cipher;
 						}*/
 
-						std::cout << IoStream::lock;
-						localMasks[it.mHashIdx].emplace(*(u64*)&cipher, std::pair<block, u64>(cipher, it.mIdx));
-						std::cout << IoStream::unlock;
+						//std::cout << IoStream::lock;
+						if (isMultiThreaded)
+						{
+							std::lock_guard<std::mutex> lock(mtx);
+							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
+								, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
+						}
+						else
+						{
+							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
+								, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
+						}
+
+
+						//std::cout << IoStream::unlock;
 					}
 				}
 
@@ -297,7 +280,7 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
-		gTimer.setTimePoint("poly");
+		gTimer.setTimePoint("r_poly");
 
 #ifdef PSI_PRINT
 		for (int j = 0; j<2; j++)
@@ -310,10 +293,7 @@ namespace osuCrypto
 #endif // PSI_PRIN
 //#####################Receive Mask #####################
 
-		u8 dummy[1];
-		chls[0].recv(dummy, 1);
-		chls[0].asyncSend(dummy, 1);
-
+		
 		auto receiveMask = [&](u64 t)
 		{
 			auto& chl = chls[t]; //parallel along with inputs
@@ -322,9 +302,9 @@ namespace osuCrypto
 			u64 endIdx = std::min(tempEndIdx, mTheirInputSize);
 
 
-			for (u64 i = startIdx; i < endIdx; i += stepSize)
+			for (u64 i = startIdx; i < endIdx; i += stepSizeMaskSent)
 			{
-				auto curStepSize = std::min(stepSize, endIdx - i);
+				auto curStepSize = std::min(stepSizeMaskSent, endIdx - i);
 				std::vector<u8> recvBuffs;
 
 				//receive the sender's marks, we have 2 buffs that corresponding to the mask of elements used hash index 0,1
@@ -348,9 +328,19 @@ namespace osuCrypto
 							{
 								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
 								{
-									std::cout << IoStream::lock;
+									if (isMultiThreaded)
+									{
+										std::lock_guard<std::mutex> lock(mtx);
+										mIntersection.push_back(match->second.second);
+									}
+									else
+									{
+										mIntersection.push_back(match->second.second);
+									}
+
+									/*std::cout << IoStream::lock;
 									mIntersection.push_back(match->second.second);
-									std::cout << IoStream::unlock;
+									std::cout << IoStream::unlock;*/
 
 
 									/*std::cout << "#id: " << match->second.second <<

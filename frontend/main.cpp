@@ -73,7 +73,16 @@ using namespace osuCrypto;
 
 #include <thread>
 #include <vector>
+#include <stdarg.h> 
 
+template<typename ... Args>
+std::string string_format(const std::string& format, Args ... args)
+{
+	size_t size = std::snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
+	std::unique_ptr<char[]> buf(new char[size]);
+	std::snprintf(buf.get(), size, format.c_str(), args ...);
+	return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
 
 static u64 expectedIntersection = 100;
 
@@ -103,9 +112,14 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 		sendChls[i] = ep1.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
 
 	PrtySender sender;
+	gTimer.reset();
+	gTimer.setTimePoint("s_start");
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
+	gTimer.setTimePoint("s_offline");
+	
 	sender.output(inputs, sendChls);
-
+	gTimer.setTimePoint("s_end");
+	std::cout << gTimer << std::endl;
 
 	for (u64 i = 0; i < numThreads; ++i)
 		sendChls[i].close();
@@ -130,15 +144,15 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 
 	PrtyReceiver recv;
 	gTimer.reset();
-	gTimer.setTimePoint("start");
+	gTimer.setTimePoint("r_start");
 
 	recv.init(inputs.size(), theirSetSize,40, prng1,recvChls); //offline
 	
-	gTimer.setTimePoint("offline");
+	gTimer.setTimePoint("r_offline");
 	
 	recv.output(inputs, recvChls); //online
 	
-	gTimer.setTimePoint("End");
+	gTimer.setTimePoint("r_end");
 
 	std::cout << gTimer << std::endl;
 
@@ -149,7 +163,17 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 		/*std::cout << "#id: " << recv.mIntersection[i] <<
 			"\t" << inputs[recv.mIntersection[i]] << std::endl;*/
 	}
+	
+	u64 dataSent = 0, dataRecv(0);
+	for (u64 g = 0; g < recvChls.size(); ++g)
+	{
+		dataSent += recvChls[g].getTotalDataSent();
+		dataRecv += recvChls[g].getTotalDataRecv();
+		recvChls[g].resetStats();
+	}
 
+	std::cout << "      Total Comm = " << string_format("%5.2f", (dataRecv + dataSent) / std::pow(2.0, 20)) << " MB\n";
+	
 	for (u64 i = 0; i < numThreads; ++i)
 		recvChls[i].close();
 
@@ -458,11 +482,13 @@ void prfOtRow_Test_Impl()
 {
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
+
+
 	std::array<block, numSuperBlocks> rowQ;
 	block x = prng0.get<block>();
-	int numTrials = 1 << 10;
-	int binSize = 1 << 5;
-
+	int setSize = 1 << 12;
+	int binSize = 40;
+	int numBin = (setSize + 39) / binSize;
 
 	std::vector<AES> mAesQ(436);
 	for (u64 i = 0; i < mAesQ.size(); i++)
@@ -471,24 +497,60 @@ void prfOtRow_Test_Impl()
 		mAesQ[i].setKey(x);
 	}
 
-	gTimer.reset();
-	gTimer.setTimePoint("start");
-	for (int iTrial = 0; iTrial < numTrials; ++iTrial)
-		prfOtRow(x, rowQ, mAesQ);
-	gTimer.setTimePoint("prfOtRow end");
-
-	std::vector<std::array<block, numSuperBlocks>> rowsQ(binSize);
-	std::vector<block> X(binSize);
-
+	std::vector<std::vector<std::array<block, numSuperBlocks>>> rowsQ1(numBin);
+	std::vector<std::vector<std::array<block, numSuperBlocks>>> rowsQ2(numBin);
+	std::vector<std::vector<block>> X(numBin);
 	for (u64 i = 0; i < X.size(); i++)
-		X[i] = prng0.get<block>();
+	{
+		X[i].resize(binSize);
+		rowsQ1[i].resize(binSize);
+		rowsQ2[i].resize(binSize);
+		for (u64 j = 0; j < X[i].size(); j++)
+			X[i][j] = prng0.get<block>();
+	}
+
 
 	gTimer.reset();
 	gTimer.setTimePoint("start");
-	for (int iTrial = 0; iTrial < numTrials / binSize; ++iTrial)
-		prfOtRows(X, rowsQ, mAesQ);
+	for (u64 i = 0; i < numBin; i++)
+	{
+		for (u64 j = 0; j < binSize; j++)
+			prfOtRow(X[i][j], rowsQ1[i][j], mAesQ);
+	}
 	gTimer.setTimePoint("prfOtRow end");
+	std::cout << gTimer << std::endl;
 
+
+
+	gTimer.reset();
+	gTimer.setTimePoint("start");
+	for (u64 i = 0; i < numBin; i++)
+		prfOtRows(X[i], rowsQ2[i], mAesQ);
+	gTimer.setTimePoint("numBin end");
+	std::cout << gTimer << std::endl;
+
+	for (u64 i = 0; i < numBin; i++)
+	{
+		for (u64 j = 0; j < binSize; j++)
+			for (u64 k = 0; k < numSuperBlocks; j++)
+				std::cout << rowsQ2[i][j][k] << "\t" << rowsQ1[i][j][k] << std::endl;
+
+	}
+
+
+	//rowsQ.resize(setSize);
+	//X.resize(setSize);
+
+	//for (u64 i = 0; i < X.size(); i++)
+	//	X[i] = prng0.get<block>();
+
+	//gTimer.reset();
+	//gTimer.setTimePoint("start");
+	//std::vector<block> ciphers(X.size());
+	//mAesQ[0].ecbEncBlocks((block*)&X, X.size(), ciphers.data()); //do many aes at the same time for efficeincy
+
+	////prfOtRows(X, rowsQ, mAesQ);
+	//gTimer.setTimePoint("setSize end");
 
 
 	std::cout << gTimer << std::endl;
@@ -498,6 +560,8 @@ void prfOtRow_Test_Impl()
 
 int main(int argc, char** argv)
 {
+	/*prfOtRow_Test_Impl();
+	return 0;*/
 
 	/*prfOtRow_Test_Impl();
 	return 0; */
@@ -508,12 +572,41 @@ int main(int argc, char** argv)
 	/*Hashing_Test_Impl();
 	return 0;*/
 
+	
+	u64 sendSetSize = 1 << 20, recvSetSize = 1 << 20, numThreads = 1;
 
-	u64 sendSetSize = 1 << 20, recvSetSize = 1<<20, numThreads=1;
+	if (argc == 9
+		&& argv[3][0] == '-' && argv[3][1] == 'N'
+		&& argv[5][0] == '-' && argv[5][1] == 'n'
+		&& argv[7][0] == '-' && argv[7][1] == 't')
+	{
+		sendSetSize = 1 << atoi(argv[4]);
+		recvSetSize =  atoi(argv[6]);
+		numThreads = atoi(argv[8]);
+	}
+
+	if (argc == 7
+		&& argv[3][0] == '-' && argv[3][1] == 'n'
+		&& argv[5][0] == '-' && argv[5][1] == 't')
+	{
+		sendSetSize = 1 << atoi(argv[4]);
+		recvSetSize = sendSetSize;
+		numThreads = atoi(argv[6]);
+	}
+
+	if (argc == 5
+		&& argv[3][0] == '-' && argv[3][1] == 'n')
+	{
+		sendSetSize = 1 << atoi(argv[4]);
+		recvSetSize = sendSetSize;
+	}
+
+		
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
 	
-	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "\n";
+	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "| \t numThreads: " << numThreads<< "\n";
+	
 	for (u64 i = 0; i < sendSetSize; ++i)
 		sendSet[i] = prng0.get<block>();
 
@@ -541,7 +634,7 @@ int main(int argc, char** argv)
 
 	
 
-	if (argc == 2 && argv[1][0] == '-' && argv[1][1] == 't') {
+	if (argv[1][0] == '-' && argv[1][1] == 't') {
 		
 		std::thread thrd = std::thread([&]() {
 			Sender(sendSet, recvSetSize, numThreads);
@@ -552,10 +645,10 @@ int main(int argc, char** argv)
 		thrd.join();
 
 	}
-	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
+	else if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
 		Sender(sendSet, recvSetSize, numThreads);
 	}
-	else if (argc == 3 && argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
+	else if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
 		Receiver(recvSet, sendSetSize, numThreads);
 	}
 	else {

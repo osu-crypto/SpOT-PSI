@@ -42,6 +42,12 @@ namespace tests_libOTe
 			Prty_PSI_impl();
 		}
 		
+		TEST_METHOD(prfOtRow_PSI_Impl_TestVS)
+		{
+			InitDebugPrinting();
+			prfOtRow_Test_Impl();
+		}
+
 	};
 }
 #endif

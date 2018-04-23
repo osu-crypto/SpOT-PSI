@@ -12,6 +12,8 @@
 #include <NTL/vec_ZZ_p.h>
 #include <NTL/ZZ_pX.h>
 #include <NTL/ZZ.h>
+#include "Tools/BalancedIndex.h"
+
 using namespace NTL;
 
 namespace osuCrypto
@@ -23,6 +25,7 @@ namespace osuCrypto
      
 		
 		bool mHasBase;
+		BalancedIndex mBalance;
 
 		u64 mMyInputSize, mTheirInputSize, mPolyNumBytes, mPolyDegree, mPsiSecParam;
 		std::vector<block> mS;

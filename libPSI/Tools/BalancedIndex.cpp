@@ -198,7 +198,13 @@ namespace osuCrypto
 			{
 				for (u64 idx = 0; idx < it->second.size(); idx++)
 				{
-					mBins[idxBin].blkValues.push_back(items[it->second[idx].mIdx]);
+					if(it->second[idx].mHashIdx==0)
+						mBins[idxBin].blks.push_back(items[it->second[idx].mIdx]);
+					else
+						mBins[idxBin].blks.push_back(items[it->second[idx].mIdx]^OneBlock);
+				
+					mBins[idxBin].idxs.push_back(it->second[idx].mIdx);
+					mBins[idxBin].hashIdxs.push_back(it->second[idx].mHashIdx);
 
 				}
 			}
