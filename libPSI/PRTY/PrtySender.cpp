@@ -103,7 +103,7 @@ namespace osuCrypto
 		//gTimer.reset();
 		//gTimer.setTimePoint("start");
 		simple.insertItems(inputs);
-		//gTimer.setTimePoint("balanced");
+		gTimer.setTimePoint("s_binning");
 		//std::cout << gTimer << std::endl;
 
 		/*std::cout << IoStream::lock;
@@ -339,7 +339,8 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
-		
+		gTimer.setTimePoint("s_poly");
+
 #ifdef PSI_PRINT
 	
 		
@@ -359,11 +360,6 @@ namespace osuCrypto
 
 #endif // PSI_PRINT
 
-		u8 dummy[1];
-		chls[0].asyncSend(dummy, 1);
-		chls[0].recv(dummy, 1);
-
-		
 
 		auto sendingMask = [&](u64 t)
 		{
@@ -373,9 +369,9 @@ namespace osuCrypto
 			u64 endIdx = std::min(tempEndIdx, (u64)inputs.size());
 
 
-			for (u64 i = startIdx; i < endIdx; i += stepSize)
+			for (u64 i = startIdx; i < endIdx; i += stepSizeMaskSent)
 			{
-				auto curStepSize = std::min(stepSize, endIdx - i);
+				auto curStepSize = std::min(stepSizeMaskSent, endIdx - i);
 
 				for (u64 hIdx = 0; hIdx < 2; hIdx++)
 				{

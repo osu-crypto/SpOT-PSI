@@ -79,7 +79,7 @@ namespace osuCrypto
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
 		mBalance.insertItems(inputs);
-		gTimer.setTimePoint("binning");
+		gTimer.setTimePoint("r_binning");
 		//std::cout << gTimer << std::endl;
 		
 	/*	std::cout << IoStream::lock;
@@ -246,10 +246,21 @@ namespace osuCrypto
 							recvMaskForDebug = cipher;
 						}*/
 
-						std::cout << IoStream::lock;
-						localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
-							, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
-						std::cout << IoStream::unlock;
+						//std::cout << IoStream::lock;
+						if (isMultiThreaded)
+						{
+							std::lock_guard<std::mutex> lock(mtx);
+							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
+								, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
+						}
+						else
+						{
+							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
+								, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
+						}
+
+
+						//std::cout << IoStream::unlock;
 					}
 				}
 
@@ -269,7 +280,7 @@ namespace osuCrypto
 		for (auto& thrd : thrds)
 			thrd.join();
 
-		gTimer.setTimePoint("poly");
+		gTimer.setTimePoint("r_poly");
 
 #ifdef PSI_PRINT
 		for (int j = 0; j<2; j++)
@@ -282,10 +293,7 @@ namespace osuCrypto
 #endif // PSI_PRIN
 //#####################Receive Mask #####################
 
-		u8 dummy[1];
-		chls[0].recv(dummy, 1);
-		chls[0].asyncSend(dummy, 1);
-
+		
 		auto receiveMask = [&](u64 t)
 		{
 			auto& chl = chls[t]; //parallel along with inputs
@@ -294,9 +302,9 @@ namespace osuCrypto
 			u64 endIdx = std::min(tempEndIdx, mTheirInputSize);
 
 
-			for (u64 i = startIdx; i < endIdx; i += stepSize)
+			for (u64 i = startIdx; i < endIdx; i += stepSizeMaskSent)
 			{
-				auto curStepSize = std::min(stepSize, endIdx - i);
+				auto curStepSize = std::min(stepSizeMaskSent, endIdx - i);
 				std::vector<u8> recvBuffs;
 
 				//receive the sender's marks, we have 2 buffs that corresponding to the mask of elements used hash index 0,1
@@ -320,9 +328,19 @@ namespace osuCrypto
 							{
 								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
 								{
-									std::cout << IoStream::lock;
+									if (isMultiThreaded)
+									{
+										std::lock_guard<std::mutex> lock(mtx);
+										mIntersection.push_back(match->second.second);
+									}
+									else
+									{
+										mIntersection.push_back(match->second.second);
+									}
+
+									/*std::cout << IoStream::lock;
 									mIntersection.push_back(match->second.second);
-									std::cout << IoStream::unlock;
+									std::cout << IoStream::unlock;*/
 
 
 									/*std::cout << "#id: " << match->second.second <<
