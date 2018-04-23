@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 project(mersenne)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3 -pthread -std=c++14 -maes -mavx -mpclmul -mbmi2 -fopenmp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3 -pthread -std=c++14 -maes -mavx -mpclmul -mbmi2 -fopenmp -Wno-ignored-attributes")
 #set(CMAKE_CXX_STANDARD 11)
 
 include_directories(/home/bush/Desktop/Avishay/NTL/ntl-10.5.0/include)
