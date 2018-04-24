@@ -16,6 +16,7 @@
 #include <byteswap.h>
 
 //#define TEST
+#define SAME_X
 
 using namespace chrono;
 
@@ -103,10 +104,6 @@ void initMersenneAfterHash(vector<array<block, 4>>& setX,
                            array<vector<ZpMersenneLongElement>,8>& X,
                            array<vector<ZpMersenneLongElement>,8>& Y) {
     uint size = setX.size();
-//    for(uint s=0; s<8; s++) {
-//        X[s].resize(size);
-//        Y[s].resize(size);
-//    }
 
     unsigned char temp;
     unsigned long tmpx=0, tmpy=0;
@@ -116,75 +113,100 @@ void initMersenneAfterHash(vector<array<block, 4>>& setX,
         unsigned char *starty = (unsigned char*)(&setY[i][0]);
 
         tmpx = bswap_64(*(ulong*)startx);
-        tmpy = bswap_64(*(ulong*)starty);
         tmpx >>= 3;
-        tmpy >>= 3;
         X[0][i].elem = tmpx;
+        tmpy = bswap_64(*(ulong*)starty);
+        tmpy >>= 3;
         Y[0][i].elem = tmpy;
 
+#ifdef SAME_X
+        X[1][i].elem = X[0][i].elem;
+        X[2][i].elem = X[0][i].elem;
+        X[3][i].elem = X[0][i].elem;
+        X[4][i].elem = X[0][i].elem;
+        X[5][i].elem = X[0][i].elem;
+        X[6][i].elem = X[0][i].elem;
+        X[7][i].elem = X[0][i].elem;
+#endif
+
+#ifndef SAME_X
         X[1][i].elem = bswap_64(*(ulong*)(startx+7));
-        Y[1][i].elem = bswap_64(*(ulong*)(starty+7));
         X[1][i].elem <<= 5;
-        Y[1][i].elem <<= 5;
         X[1][i].elem >>= 3;
-        Y[1][i].elem >>= 3;
         temp = startx[15]>>6;
         X[1][i].elem += temp;
+#endif
+
+        Y[1][i].elem = bswap_64(*(ulong*)(starty+7));
+        Y[1][i].elem <<= 5;
+        Y[1][i].elem >>= 3;
         temp = starty[15]>>6;
         Y[1][i].elem += temp;
 
+#ifndef SAME_X
         X[2][i].elem = bswap_64(*(ulong*)(startx+15));
-        Y[2][i].elem = bswap_64(*(ulong*)(starty+15));
         X[2][i].elem <<= 2;
-        Y[2][i].elem <<= 2;
         X[2][i].elem >>= 3;
+#endif
+        Y[2][i].elem = bswap_64(*(ulong*)(starty+15));
+        Y[2][i].elem <<= 2;
         Y[2][i].elem >>= 3;
 
+#ifndef SAME_X
         X[3][i].elem = bswap_64(*(ulong*)(startx+22));
-        Y[3][i].elem = bswap_64(*(ulong*)(starty+22));
         X[3][i].elem <<= 7;
-        Y[3][i].elem <<= 7;
         X[3][i].elem >>= 3;
-        Y[3][i].elem >>= 3;
         temp = startx[30]>>4;
         X[3][i].elem += temp;
+#endif
+        Y[3][i].elem = bswap_64(*(ulong*)(starty+22));
+        Y[3][i].elem <<= 7;
+        Y[3][i].elem >>= 3;
         temp = starty[30]>>4;
         Y[3][i].elem += temp;
 
+#ifndef SAME_X
         X[4][i].elem = bswap_64(*(ulong*)(startx+30));
-        Y[4][i].elem = bswap_64(*(ulong*)(starty+30));
         X[4][i].elem <<= 4;
-        Y[4][i].elem <<= 4;
         X[4][i].elem >>= 3;
-        Y[4][i].elem >>= 3;
         temp = startx[38]>>7;
         X[4][i].elem += temp;
+#endif
+        Y[4][i].elem = bswap_64(*(ulong*)(starty+30));
+        Y[4][i].elem <<= 4;
+        Y[4][i].elem >>= 3;
         temp = starty[38]>>7;
         Y[4][i].elem += temp;
 
+#ifndef SAME_X
         X[5][i].elem = bswap_64(*(ulong*)(startx+38));
-        Y[5][i].elem = bswap_64(*(ulong*)(starty+38));
         X[5][i].elem <<= 1;
-        Y[5][i].elem <<= 1;
         X[5][i].elem >>= 3;
+#endif
+        Y[5][i].elem = bswap_64(*(ulong*)(starty+38));
+        Y[5][i].elem <<= 1;
         Y[5][i].elem >>= 3;
 
+#ifndef SAME_X
         X[6][i].elem = bswap_64(*(ulong*)(startx+45));
-        Y[6][i].elem = bswap_64(*(ulong*)(starty+45));
         X[6][i].elem <<= 6;
-        Y[6][i].elem <<= 6;
         X[6][i].elem >>= 3;
-        Y[6][i].elem >>= 3;
         temp = startx[53]>>5;
         X[6][i].elem += temp;
+#endif
+        Y[6][i].elem = bswap_64(*(ulong*)(starty+45));
+        Y[6][i].elem <<= 6;
+        Y[6][i].elem >>= 3;
         temp = starty[53]>>5;
         Y[6][i].elem += temp;
 
+#ifndef SAME_X
         X[7][i].elem = bswap_64(*(ulong*)(startx+53));
-        Y[7][i].elem = bswap_64(*(ulong*)(starty+53));
         X[7][i].elem <<= 3;
-        Y[7][i].elem <<= 3;
         X[7][i].elem >>= 3;
+#endif
+        Y[7][i].elem = bswap_64(*(ulong*)(starty+53));
+        Y[7][i].elem <<= 3;
         Y[7][i].elem >>= 3;
     }
 
@@ -277,6 +299,17 @@ void evalSuperPolynomial(vector<array<block, 4>>& coeffs,
         tmpx >>= 3;
         X[0][i].elem = tmpx;
 
+#ifdef SAME_X
+        X[1][i].elem = X[0][i].elem;
+        X[2][i].elem = X[0][i].elem;
+        X[3][i].elem = X[0][i].elem;
+        X[4][i].elem = X[0][i].elem;
+        X[5][i].elem = X[0][i].elem;
+        X[6][i].elem = X[0][i].elem;
+        X[7][i].elem = X[0][i].elem;
+
+#else
+
         X[1][i].elem = bswap_64(*(ulong *) (startx + 7));
         X[1][i].elem <<= 5;
         X[1][i].elem >>= 3;
@@ -312,7 +345,7 @@ void evalSuperPolynomial(vector<array<block, 4>>& coeffs,
         X[7][i].elem = bswap_64(*(ulong *) (startx + 53));
         X[7][i].elem <<= 3;
         X[7][i].elem >>= 3;
-
+#endif
     }
 
 #ifdef TEST
