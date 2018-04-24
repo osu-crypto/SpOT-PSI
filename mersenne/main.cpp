@@ -15,7 +15,7 @@
 
 #include <byteswap.h>
 
-#define TEST
+//#define TEST
 
 using namespace chrono;
 
@@ -204,14 +204,11 @@ void initMersenneAfterHash(vector<array<block, 4>>& setX,
 void getBlkCoefficients(u64 degree,
                         vector<array<block, 4>>& setX,
                         vector<array<block, 4>>& setY,
-                        vector<array<block, 4>>& coeffs,
-                        array<vector<ZpMersenneLongElement>,8>& X,
-                        array<vector<ZpMersenneLongElement>,8>& Y,
-                        array<vector<ZpMersenneLongElement>,8>& C
+                        vector<array<block, 4>>& coeffs
 ) {
     //assuming 8 slices: 61*8=488
     uint size = setX.size(); //assuming setX.size()=setY.size()=coeffs.size()
-//    array<vector<ZpMersenneLongElement>,8> X,Y,C;
+    array<vector<ZpMersenneLongElement>,8> X,Y,C;
 
     for(uint s=0; s<8; s++) {
         X[s].resize(size);
@@ -237,11 +234,7 @@ void getBlkCoefficients(u64 degree,
 
 void evalSuperPolynomial(vector<array<block, 4>>& coeffs,
                          vector<array<block, 4>>& setX,
-                         vector<array<block, 4>>& setY,
-                         vector<array<block, 4>>& realSetY,
-                         array<vector<ZpMersenneLongElement>,8>& realX,
-                         array<vector<ZpMersenneLongElement>,8>& realY,
-                         array<vector<ZpMersenneLongElement>,8>& realC
+                         vector<array<block, 4>>& setY
 ) {
     uint size = setX.size();
     array<vector<ZpMersenneLongElement>,8> X,Y,C;
@@ -355,7 +348,6 @@ void evalSuperPolynomial(vector<array<block, 4>>& coeffs,
     //take Y's back to blocks form
     ulong t;
     for (uint i=0; i<size; i++) {
-        ulong *startrealy = (ulong *) (&realSetY[i][0]);
         ulong *starty = (ulong *) (&setY[i][0]);
 
         *starty = Y[0][i].elem;
@@ -433,14 +425,48 @@ void evalSuperPolynomial(vector<array<block, 4>>& coeffs,
 void test_with_blocks();
 int main () {
 
-    uint binsize = 40;
-    std::vector<std::array<block, 4>> setX(binsize), setY(binsize), coeffs(binsize);
-    array<vector<ZpMersenneLongElement>,8> X,Y,C;
-    randomPoints(setX,setY);
-    getBlkCoefficients(binsize-1, setX,setY,coeffs, X,Y,C);
+    system_clock::time_point begin, end;
+    uint binsize = 40, numbins=26215;
+    vector<vector<array<block, 4>>> setX(numbins), setY(numbins), coeffs(numbins), newY(numbins);
 
-    std::vector<std::array<block, 4>> newY(binsize);
-    evalSuperPolynomial(coeffs, setX, newY, setY, X,Y,C);
+    cout << "initiate with random" << endl;
+    for (uint n=0; n<numbins; n++) {
+        setX[n].resize(binsize);
+        setY[n].resize(binsize);
+        coeffs[n].resize(binsize);
+        newY[n].resize(binsize);
+        randomPoints(setX[n], setY[n]);
+    }
+
+
+    cout << "interpolation: " ;
+    begin = system_clock::now();
+    for (uint n=0; n<numbins; n++) {
+        getBlkCoefficients(binsize - 1, setX[n], setY[n], coeffs[n]);
+    }
+    end = system_clock::now();
+    cout << duration_cast<milliseconds>(end - begin).count() << " ms" << endl;
+
+
+    cout << "evaluation: " ;
+    begin = system_clock::now();
+    for (uint n=0; n<numbins; n++) {
+        evalSuperPolynomial(coeffs[n], setX[n], newY[n]);
+    }
+    end = system_clock::now();
+    cout << duration_cast<milliseconds>(end - begin).count() << " ms" << endl;
+
+
+    cout << "checking correctness" << endl ;
+    for (uint n=0; n<numbins; n++) {
+        for (uint b = 0; b < binsize; b++) {
+            if (!blocksEqual(setY[n][b], newY[n][b])) {
+                cout << "blocks not equal!" << endl;
+                exit(1);
+            }
+        }
+    }
+    cout << "blocks equal!" << endl;
 
 //    test_with_blocks();
 }
