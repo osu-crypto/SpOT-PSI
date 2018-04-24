@@ -44,12 +44,16 @@ namespace osuCrypto
 		std::vector<u64> mIntersection; //index
 
 		block recvMaskForDebug;
+		//AES mAesHasher;
 
 		std::vector<block> Outputs;
 
 		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);
+		void outputBestComm(span<block> inputs, span<Channel> chls);
+		void outputBigPoly(span<block> inputs, span<Channel> chls);
 
+		
     };
 
 }
