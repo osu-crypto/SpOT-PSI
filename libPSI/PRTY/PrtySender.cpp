@@ -846,6 +846,7 @@ namespace osuCrypto
 		};
 
 
+
 		std::vector<std::thread> thrds(chls.size());
 		for (u64 i = 0; i < thrds.size(); ++i)
 		{
@@ -858,6 +859,10 @@ namespace osuCrypto
 			thrd.join();
 
 		gTimer.setTimePoint("OT Row");
+
+		for (u64 i = 0; i < numSuperBlocks; i++)
+			subRowQForDebug[i] = subRowQ[0][0][i];
+	
 
 
 		//=====================Poly=====================
@@ -886,7 +891,7 @@ namespace osuCrypto
 		}
 
 
-		std::cout << IoStream::lock;
+		//std::cout << IoStream::lock;
 
 		u64 degree = mTheirInputSize - 1;
 		GenGermainPrime(mPrime, primeLong);
@@ -894,7 +899,7 @@ namespace osuCrypto
 
 		ZZ zz;
 		ZZ_p* zzX = new ZZ_p[inputs.size()];
-		std::array<ZZ_p*, 4> zzY;
+		std::array<ZZ_p*, numSuperBlocks> zzY;
 		
 		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
 		block rcvBlk;
@@ -920,28 +925,37 @@ namespace osuCrypto
 			iterRecvs[j] = 0;
 			if (j == numSuperBlocks - 1)
 			{
-				for (int c = 0; c < degree; c++) {
+				for (int c = 0; c <= degree; c++) {
 					memcpy((u8*)&rcvBlk, recvBuffs[j].data() + iterRecvs[j], lastPolyMaskBytes);
 					iterRecvs[j] += lastPolyMaskBytes;
+				
+					//std::cout << "s SetCoeff: " << rcvBlk << std::endl;
+
+
 					ZZFromBytes(zz, (u8*)&rcvBlk, lastPolyMaskBytes);
 					SetCoeff(recvPoly, c, to_ZZ_p(zz));
 				}
 			}
 			else
 			{
-				for (int c = 0; c < degree; c++) {
+				for (int c = 0; c <= degree; c++) {
 					memcpy((u8*)&rcvBlk, recvBuffs[j].data() + iterRecvs[j], sizeof(block));
 					iterRecvs[j] += sizeof(block);
-					ZZFromBytes(zz, (u8*)&rcvBlk, lastPolyMaskBytes);
+
+					//std::cout << "s SetCoeff: " << rcvBlk << std::endl;
+
+
+					ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
 					SetCoeff(recvPoly, c, to_ZZ_p(zz));
 				}
 			}
 
 
+
 			evaluate(recvPoly, p_tree, reminders, degree * 2 + 1, zzY[j], numThreads, mPrime);
 		}
 
-		std::cout << IoStream::unlock;
+		//std::cout << IoStream::unlock;
 
 
 		auto computeMask = [&](u64 t)
@@ -960,15 +974,24 @@ namespace osuCrypto
 				for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 				{
 					if (j == numSuperBlocks - 1) //get last 440-3*128 bits
-						BytesFromZZ((u8*)&rcvRowR, rep(zzY[j][idx]), lastPolyMaskBytes);
+						BytesFromZZ((u8*)&rcvRowR, rep(zzY[j][startIdx+idx]), lastPolyMaskBytes);
 					else
-						BytesFromZZ((u8*)&rcvRowR, rep(zzY[j][idx]), sizeof(block));
+						BytesFromZZ((u8*)&rcvRowR, rep(zzY[j][startIdx +idx]), sizeof(block));
+
+
+					if (t == 0 && idx == 0)
+						std::cout << "s rcvRowR: " << rcvRowR << std::endl;
 
 
 					recvRowT[j] = subRowQ[t][idx][j] ^ (rcvRowR & choiceBlocks[j]); //Q+s*P
 
 					if (j == numSuperBlocks - 1) //get last 440-3*128 bits
 						recvRowT[j] = recvRowT[j] & mTruncateBlk;
+
+					if(t==0 && idx==0)
+						std::cout << "recvRowT: " << recvRowT [j]<< std::endl;
+
+
 				}
 
 				simple.mAesHasher.ecbEncFourBlocks(recvRowT.data(), cipher.data());

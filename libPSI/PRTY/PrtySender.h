@@ -44,6 +44,8 @@ namespace osuCrypto {
 
 		u64 idxPermuteDoneforDebug, hashIdxforDebug;
 		AES mAesHasher;
+
+		std::array<block, numSuperBlocks > subRowQForDebug;
 		
 		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);

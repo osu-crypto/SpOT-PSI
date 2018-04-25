@@ -186,7 +186,7 @@ void Poly_Test_Impl() {
 
 
 	int degree = 40;
-	int numTrials = (degree - 1 + (1 << 20)) / degree;
+	int numTrials = (degree - 1 + (1 << 8)) / degree;
 	long numSlice = 4;
 	int subField = 128;
 	int fieldSize = 440;
@@ -565,8 +565,41 @@ int main(int argc, char** argv)
 
 	/*prfOtRow_Test_Impl();
 	return 0; */
-	/*Poly_Test_Impl();
-	return 0;*/
+
+	ZZ prime;
+	GenGermainPrime(prime, 128);
+	long degree = 66;
+
+	// init underlying prime field
+	ZZ_p::init(ZZ(prime));
+
+
+	// interpolation points:
+	ZZ_p* x = new ZZ_p[degree + 1];
+	ZZ_p* y = new ZZ_p[degree + 1];
+	ZZ_p* y_recover = new ZZ_p[degree + 1];
+	for (unsigned int i = 0; i <= degree; i++) {
+		NTL::random(x[i]);
+		NTL::random(y[i]);
+		//        cout << "(" << x[i] << "," << y[i] << ")" << endl;
+	}
+
+	ZZ_pX P;
+
+	interpolate_zp(P, x, y, degree, 1, prime);
+
+	multipoint_evaluate_zp(P, x, y_recover, degree, 1, prime);
+
+	for (long i = 0; i < degree + 1; i++) {
+		if (y_recover[i] != y[i]) {
+			std::cout << "Error! x = " << x[i] << ", y = " << y[i] << ", res = " << y_recover[i] << endl;
+			//return;
+		}
+	}
+	std::cout << "Polynomial is interpolated correctly!" << endl;
+
+	Poly_Test_Impl();
+	return 0;
 	
 
 	/*Hashing_Test_Impl();

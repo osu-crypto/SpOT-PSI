@@ -752,6 +752,7 @@ namespace osuCrypto
 		//=====================OT row=====================
 		std::vector<std::array<block, numSuperBlocks>> rowR(inputs.size());
 
+		
 		auto computeOtRows = [&](u64 t)
 		{
 
@@ -778,6 +779,17 @@ namespace osuCrypto
 
 			prfOtRows(X, subRowT, mAesT);
 			prfOtRows(X, subRowU, mAesU);
+
+			if (t == 0)
+			{
+				for (u64 i = 0; i < numSuperBlocks; i++)
+				{
+					subRowTForDebug[i] = subRowT[0][i];
+					subRowUForDebug[i] = subRowU[0][i];
+
+				}
+			}
+
 
 			for (u64 i = 0; i < X.size(); i ++)
 			{
@@ -824,19 +836,22 @@ namespace osuCrypto
 		gTimer.setTimePoint("OT Row");
 
 		//=====================Poly=====================
-		std::cout << IoStream::lock;
+		//std::cout << IoStream::lock;
 
 		GenGermainPrime(mPrime, primeLong);
 		ZZ_p::init(ZZ(mPrime));
 
 		u64 degree = inputs.size() - 1;
 		ZZ_p* zzX = new ZZ_p[inputs.size()];
-		ZZ_p* zzY = new ZZ_p[inputs.size()];
+		std::array<ZZ_p*, numSuperBlocks> zzY;
+		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+			zzY[j] = new ZZ_p[inputs.size()];
+
 		ZZ zz;
 		ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
 		ZZ_p *a = new ZZ_p[degree + 1];;
 		ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
-		ZZ_pX Polynomial;
+		std::array<ZZ_pX, numSuperBlocks> Polynomials;
 		std::array<std::vector<u8>, numSuperBlocks> sendBuffs;
 		
 
@@ -846,38 +861,23 @@ namespace osuCrypto
 			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
 			zzX[idx] = to_ZZ_p(zz);
 
+
 			for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 			{
-				ZZFromBytes(zz, (u8*)&rowR[idx][j], sizeof(block));
-				zzY[idx] = to_ZZ_p(zz);
+				if (j == numSuperBlocks - 1)
+				{
+					ZZFromBytes(zz, (u8*)&rowR[idx][j], lastPolyMaskBytes);
+					zzY[j][idx] = to_ZZ_p(zz);
+				}
+				else
+				{
+					ZZFromBytes(zz, (u8*)&rowR[idx][j], sizeof(block));
+					zzY[j][idx] = to_ZZ_p(zz);
+				}
 			}
 		}
 
-
-		//for (u64 t = 0; t < thrds.size(); ++t)
-		//{
-		//	thrds[t] = std::thread([=] {
-		//		ZZ zz;
-		//		u64 startIdx = mMyInputSize * t / numThreads;
-		//		u64 tempEndIdx = mMyInputSize* (t + 1) / numThreads;
-		//		u64 endIdx = std::min(tempEndIdx, mMyInputSize);
-		//		for (u64 idx = startIdx; idx < endIdx; idx++)
-		//		{
-		//			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
-		//			zzX[idx] = to_ZZ_p(zz);
-		//			for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-		//			{
-		//				ZZFromBytes(zz, (u8*)&rowR[idx][j], sizeof(block));
-		//				zzY[idx] = to_ZZ_p(zz);
-		//			}
-		//		}
-		//	});
-		//}
-
-		//for (auto& thrd : thrds)
-		//	thrd.join();
-
-
+		
 		prepareForInterpolate(zzX, degree, M, a, numThreads, mPrime);
 
 		std::array<u64, numSuperBlocks> iterSends;
@@ -885,52 +885,160 @@ namespace osuCrypto
 		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 		{
 			iterSends[j] = 0;
-			iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, numThreads, mPrime);
+			iterative_interpolate_zp(Polynomials[j], temp, zzY[j], a, M, degree * 2 + 1, numThreads, mPrime);
+		}
 
+		
+
+
+
+		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+		{
 			if (j == numSuperBlocks - 1)
 			{
 				sendBuffs[j].resize(inputs.size() * lastPolyMaskBytes);
-				for (int c = 0; c < degree; c++) {
-					BytesFromZZ(sendBuffs[j].data() + iterSends[j], rep(Polynomial.rep[c]), lastPolyMaskBytes);
+				for (int c = 0; c <= degree; c++) {
+
+					block coeff;
+
+					BytesFromZZ((u8*)&coeff, rep(Polynomials[j].rep[c]), lastPolyMaskBytes);
+
+					//std::cout << "r SetCoeff: " << coeff << std::endl;
+					memcpy(sendBuffs[j].data() + iterSends[j], (u8*)&coeff, lastPolyMaskBytes);
+
+					/*block test;
+					memcpy((u8*)&test, sendBuffs[j].data() + iterSends[j], lastPolyMaskBytes);
+					std::cout << "SetCoeff: " << test << std::endl;*/
 					iterSends[j] += lastPolyMaskBytes;
+
 				}
 
 			}
 			else
 			{
 				sendBuffs[j].resize(inputs.size() * sizeof(block));
-				for (int c = 0; c < degree; c++) {
-					BytesFromZZ(sendBuffs[j].data() + iterSends[j], rep(Polynomial.rep[c]), sizeof(block));
+				for (int c = 0; c <= degree; c++) {
+
+					block coeff;
+
+					BytesFromZZ((u8*)&coeff, rep(Polynomials[j].rep[c]), sizeof(block));
+					
+					//std::cout << "r SetCoeff: " << coeff << std::endl; 
+					memcpy(sendBuffs[j].data() + iterSends[j], (u8*)&coeff, sizeof(block));
+
+
+					/*block test;
+					memcpy((u8*)&test, sendBuffs[j].data() + iterSends[j], sizeof(block));
+					std::cout << "r SetCoeff: " << test << std::endl;*/
+
+
+
 					iterSends[j] += sizeof(block);
 				}
 			}
+			//chls[0].asyncSend(std::move(sendBuffs[j]));
+
 		}
-		std::cout << IoStream::unlock;
 
 
-		if (thrds.size() >= numSuperBlocks)
+
+		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+		ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+		std::array<ZZ_p*, numSuperBlocks> zzY1;
+		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+			zzY1[j] = new ZZ_p[inputs.size()];
+
+		build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+		std::array<u64, numSuperBlocks> iterRecvs;
+		block rcvBlk;
+
+		std::array<ZZ_pX, numSuperBlocks> recvPolynomials;
+
+
+		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
 		{
-			for (u64 t = 0; t < thrds.size(); ++t)
+			iterRecvs[j] = 0;
+			if (j == numSuperBlocks - 1)
 			{
-				thrds[t] = std::thread([=] {
-					auto& chl = chls[t];
-					chl.asyncSend(std::move(sendBuffs[t]));
-				});
+				for (int c = 0; c <= degree; c++) {
+					memcpy((u8*)&rcvBlk, sendBuffs[j].data() + iterRecvs[j], lastPolyMaskBytes);
+					iterRecvs[j] += lastPolyMaskBytes;
+
+					//std::cout << "r SetCoeff1: " << rcvBlk << std::endl;
+
+
+					ZZFromBytes(zz, (u8*)&rcvBlk, lastPolyMaskBytes);
+					SetCoeff(recvPolynomials[j], c, to_ZZ_p(zz));
+				}
+			}
+			else
+			{
+				for (int c = 0; c <= degree; c++) {
+					memcpy((u8*)&rcvBlk, sendBuffs[j].data() + iterRecvs[j], sizeof(block));
+					iterRecvs[j] += sizeof(block);
+
+					//std::cout << "r SetCoeff1: " << rcvBlk << std::endl;
+
+
+
+					ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
+					SetCoeff(recvPolynomials[j], c, to_ZZ_p(zz));
+				}
 			}
 
-			for (auto& thrd : thrds)
-				thrd.join();
+
+				for (int c = 0; c <= degree; c++)
+				{
+					block coeff;
+					if (j==numSuperBlocks-1)
+						BytesFromZZ((u8*)&coeff, rep(Polynomials[j].rep[c]), lastPolyMaskBytes);
+					else 
+						BytesFromZZ((u8*)&coeff, rep(Polynomials[j].rep[c]), sizeof(block));
+
+					block coeff1;
+					if (j == numSuperBlocks - 1)
+						BytesFromZZ((u8*)&coeff1, rep(recvPolynomials[j].rep[c]), lastPolyMaskBytes);
+					else
+						BytesFromZZ((u8*)&coeff1, rep(recvPolynomials[j].rep[c]), sizeof(block));
+
+
+					if (neq(coeff1, coeff))
+						std::cout << coeff1 << "\t ===coeff=== \t " <<coeff  << std::endl;
+				}
+			
+
+
+			evaluate(recvPolynomials[j], p_tree, reminders, degree * 2 + 1, zzY1[j], numThreads, mPrime);
 		}
-		else
+
+
+		for (u64 i = 0; i < inputs.size(); i++)
 		{
-			chls[0].asyncSend(std::move(sendBuffs[0]));
-			chls[0].asyncSend(std::move(sendBuffs[1]));
-			chls[0].asyncSend(std::move(sendBuffs[2]));
-			chls[0].asyncSend(std::move(sendBuffs[3]));
+			for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+			{
+			
+				if(zzY1[j][i]!= zzY[j][i])
+					std::cout << "zzY: " << i << "," << j << "\t " << zzY1[j][i] << "\t" << zzY[j][i] << std::endl;
+
+				block rcvRowR;
+				BytesFromZZ((u8*)&rcvRowR, rep(zzY1[j][i]), sizeof(block));
+
+			
+				if (neq(rcvRowR, rowR[i][j]))
+					std::cout << "FFT: " << i << "," << j << "\t " << rcvRowR << "\t" << rowR[i][j] << std::endl;
+
+				if (i == 0)
+					std::cout << "rowR[i][j]: " << i << "," << j << "\t " << rcvRowR << "\t" << rowR[i][j] << std::endl;
+
+			}
 		}
-		gTimer.setTimePoint("send poly");
+	
+
+		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+			chls[0].asyncSend(std::move(sendBuffs[j]));
 
 
+		//std::cout << IoStream::unlock;
 
 		//#####################Receive Mask #####################
 

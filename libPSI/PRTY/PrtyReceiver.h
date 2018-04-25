@@ -46,6 +46,9 @@ namespace osuCrypto
 		block recvMaskForDebug;
 		//AES mAesHasher;
 
+		std::array<block, numSuperBlocks> subRowTForDebug;
+		std::array<block, numSuperBlocks> subRowUForDebug;
+
 		std::vector<block> Outputs;
 
 		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
