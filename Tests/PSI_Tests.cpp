@@ -281,7 +281,7 @@ namespace tests_libOTe
 		u64 numThreads = 1;
 
 
-		GenGermainPrime(mPrime, 128);
+		GenGermainPrime(mPrime, 129);
 		ZZ_p::init(ZZ(mPrime));
 
 		u64 degree = inputs.size() - 1;
@@ -322,10 +322,10 @@ namespace tests_libOTe
 		for (int c = 0; c <= degree; c++) {
 			//std::vector<u8> coeff(sizeof(block));
 
-			block coeff;
+			u8* coeff =new u8[sizeof(block) + 1];
 
-			BytesFromZZ((u8*)&coeff, rep(Polynomials.rep[c]), sizeof(block));
-			ZZFromBytes(zz, (u8*)&coeff, sizeof(block));
+			BytesFromZZ(coeff, rep(Polynomials.rep[c]), sizeof(block)+1);
+			ZZFromBytes(zz, coeff, sizeof(block)+1);
 
 
 			if (to_ZZ_p(zz) != Polynomials.rep[c])
@@ -403,12 +403,12 @@ namespace tests_libOTe
 			block rcvRowR;
 			BytesFromZZ((u8*)&rcvRowR, rep(zzY1[i]), sizeof(block));
 
-			block rcvRowR2;
-			BytesFromZZ((u8*)&rcvRowR2, rep(zzY[i]), sizeof(block));
+		/*	block rcvRowR2;
+			BytesFromZZ((u8*)&rcvRowR2, rep(zzY[i]), sizeof(block));*/
 
 
-				if (neq(rcvRowR, rcvRowR2))
-				std::cout << "FFT: " << i << "," << rcvRowR << "\t" << rcvRowR2 << std::endl;
+				if (neq(rcvRowR, rowR[i][0]))
+				std::cout << "FFT: " << i << "," << rcvRowR << "\t" << rowR[i][0] << std::endl;
 
 		
 

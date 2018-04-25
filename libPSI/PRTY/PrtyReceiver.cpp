@@ -899,7 +899,9 @@ namespace osuCrypto
 				sendBuffs[j].resize(inputs.size() * lastPolyMaskBytes);
 				for (int c = 0; c <= degree; c++) {
 
+					//u8* coeff = new u8[lastPolyMaskBytes + 1];
 					block coeff;
+
 
 					BytesFromZZ((u8*)&coeff, rep(Polynomials[j].rep[c]), lastPolyMaskBytes);
 
@@ -919,7 +921,9 @@ namespace osuCrypto
 				sendBuffs[j].resize(inputs.size() * sizeof(block));
 				for (int c = 0; c <= degree; c++) {
 
+					//u8* coeff = new u8[sizeof(block) + 1];
 					block coeff;
+
 
 					BytesFromZZ((u8*)&coeff, rep(Polynomials[j].rep[c]), sizeof(block));
 					
@@ -1131,15 +1135,15 @@ namespace osuCrypto
 
 		};
 
-		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		{
-			thrds[i] = std::thread([=] {
-				receiveMask(i);
-			});
-		}
+		//for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		//{
+		//	thrds[i] = std::thread([=] {
+		//		receiveMask(i);
+		//	});
+		//}
 
-		for (auto& thrd : thrds)
-			thrd.join();
+		//for (auto& thrd : thrds)
+		//	thrd.join();
 
 
 

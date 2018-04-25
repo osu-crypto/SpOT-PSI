@@ -1075,15 +1075,15 @@ namespace osuCrypto
 			}
 		};
 
-		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		{
-			thrds[i] = std::thread([=] {
-				sendingMask(i);
-			});
-		}
+		//for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		//{
+		//	thrds[i] = std::thread([=] {
+		//		sendingMask(i);
+		//	});
+		//}
 
-		for (auto& thrd : thrds)
-			thrd.join();
+		//for (auto& thrd : thrds)
+		//	thrd.join();
 
 
 #endif

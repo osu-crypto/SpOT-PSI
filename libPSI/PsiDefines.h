@@ -23,7 +23,7 @@ namespace osuCrypto
 	static const u64 recvNumDummies(1);
 	static const u64 recvMaxBinSize(40);
 	static std::vector<block> mOneBlocks(128); 
-	static const u64 primeLong(128);
+	static const u64 primeLong(129);
 	static const u64 fieldSize(440); //TODO 4*sizeof(block)
 
 	static const u64 bIdxForDebug(3), iIdxForDebug(0), hIdxForDebug(0);
