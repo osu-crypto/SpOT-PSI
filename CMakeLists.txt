@@ -60,7 +60,7 @@ include_directories("${Miracl_Dirs}")
 
 # default location for NTL
 set(NTL_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/ntl/")
-set(NTL_Dirs "/home/bush/Desktop/Avishay/NTL/ntl-10.5.0/")
+#set(NTL_Dirs "/home/bush/Desktop/Avishay/NTL/ntl-10.5.0/")
 include_directories("${NTL_Dirs}/include/")
 
 # default location for GMP

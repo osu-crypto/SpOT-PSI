@@ -33,7 +33,7 @@ namespace osuCrypto
 	inline u64 getFieldSizeInBits(u64 setSize)
 	{
 
-		//return 512;
+		return 512;
 
 
 		if (setSize <= (1 << 10))

@@ -744,8 +744,14 @@ namespace osuCrypto
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
-		u64 hashMaskBytes =  (40 + log2(mTheirInputSize) + 7) / 8;
+		u64 hashMaskBits = (40 + log2(mTheirInputSize) + 2 ) ;
+		u64 hashMaskBytes =  (hashMaskBits + 7) / 8;
+
 		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
+		u64 n1n2MaskBits = (40 + log2(mTheirInputSize*mMyInputSize));
+		u64 n1n2MaskBytes = (n1n2MaskBits+7)/8;
+
+
 
 		auto choiceBlocks = mOtChoices.getSpan<block>(); //s
 
@@ -915,7 +921,8 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
-				//std::cout << cipher[0] << " " << idxItem <<" == S cipher[0]\n";
+				if(idxItem==0)
+					std::cout << cipher[0] << " " << idxItem <<" == S cipher[0]\n";
 
 
 				memcpy(globalHash.data() + idxItem, (u8*)&cipher[0], sizeof(block));
@@ -938,6 +945,10 @@ namespace osuCrypto
 #if 1
 		//=====================Sort=====================
 
+
+
+		std::cout << globalHash.size() << " globalHash.size()\n";
+
 		auto ss = [](const block& lhs, const block& rhs) -> bool {
 			return memcmp(&lhs, &rhs, sizeof(block)) < 0;
 		};
@@ -946,10 +957,59 @@ namespace osuCrypto
 
 		gTimer.setTimePoint("s_sort");
 
-		std::cout << "globalHash " << globalHash[0] << "\n";
-		std::cout << "globalHash " << globalHash[1] << "\n";
-		std::cout << "globalHash " << globalHash[2] << "\n";
-		std::cout << "globalHash " << globalHash[3] << "\n";
+		std::vector<u8> sendBuff(1.02*inputs.size()*(hashMaskBytes));
+
+		
+		//block 
+		block boundMaskDiff = ZeroBlock;
+		for (u64 i = 0; i < hashMaskBytes*8; i++)
+			boundMaskDiff = boundMaskDiff^mOneBlocks[i];
+
+		std::cout << boundMaskDiff << "  boundMaskDiff\n";
+
+
+		
+		u64 iterSendDiff = 0;
+
+		memcpy(sendBuff.data(), (u8*)&globalHash[0], n1n2MaskBytes);
+		iterSendDiff += n1n2MaskBytes;
+
+		block diff;
+		for (u64 idx = 0; idx < inputs.size()-1; idx++)
+		{
+			diff = globalHash[idx + 1] - globalHash[idx];
+
+			if (memcmp(&diff, &boundMaskDiff, hashMaskBytes) < 0)
+			{
+				//std::cout << diff << "  " << idx << "\t ==diff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
+				memcpy(sendBuff.data()+ iterSendDiff, (u8*)&diff, hashMaskBytes);
+				iterSendDiff += hashMaskBytes;
+			}
+			else
+			{
+				//std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
+
+				memcpy(sendBuff.data() + iterSendDiff, (u8*)&ZeroBlock, hashMaskBytes);
+				iterSendDiff += hashMaskBytes;
+			
+				memcpy(sendBuff.data() + iterSendDiff, (u8*)& globalHash[idx+1], n1n2MaskBytes);
+				iterSendDiff += n1n2MaskBytes;
+			}
+			if (iterSendDiff > sendBuff.size())
+			{
+				std::cout << "iterSendDiff > sendBuff.size(): " << iterSendDiff << "\t" << sendBuff.size() << "\n";
+				sendBuff.resize(sendBuff.size() + (inputs.size() - iterSendDiff)*hashMaskBytes);
+			}
+			//std::cout << idx << " idx \n";
+		}
+		//memcpy(sendBuff.data() + iterSendDiff, (u8*)& ZeroBlock, sendBuff.size()- iterSendDiff);
+
+		
+		block aaa=ZeroBlock;
+		memcpy( (u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
+		std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";
+
+		chls[0].asyncSend(std::move(sendBuff));
 
 
 		auto sendingMask = [&](u64 t)
@@ -992,15 +1052,15 @@ namespace osuCrypto
 			}
 		};
 
-		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		{
-			thrds[i] = std::thread([=] {
-				sendingMask(i);
-			});
-		}
+		//for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		//{
+		//	thrds[i] = std::thread([=] {
+		//		sendingMask(i);
+		//	});
+		//}
 
-		for (auto& thrd : thrds)
-			thrd.join();
+		//for (auto& thrd : thrds)
+		//	thrd.join();
 
 
 #endif

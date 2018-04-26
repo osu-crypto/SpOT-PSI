@@ -647,7 +647,11 @@ namespace osuCrypto
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
 		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
-		u64 hashMaskBytes = (40 + log2(mMyInputSize) + 7) / 8;
+		u64 hashMaskBytes = (40 + log2(mMyInputSize) + 2+7) / 8;
+
+		u64 n1n2MaskBits = (40 + log2(mTheirInputSize*mMyInputSize));
+		u64 n1n2MaskBytes = (n1n2MaskBits + 7) / 8;
+
 
 		std::unordered_map<u32, std::pair<block, u64>> localMasks;
 		//localMasks.reserve(inputs.size());
@@ -706,7 +710,8 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
-				//std::cout << cipher[0] << " " << startIdx+i << " == R cipher[0]\n";
+				if(startIdx + i==0)
+					std::cout << cipher[0] << " " << startIdx+i << " == R cipher[0]\n";
 
 
 				if (isMultiThreaded)
@@ -736,7 +741,7 @@ namespace osuCrypto
 			thrd.join();
 
 
-		gTimer.setTimePoint("OT Row");
+		gTimer.setTimePoint("r_OTRow");
 
 		//=====================Poly=====================
 
@@ -860,9 +865,72 @@ namespace osuCrypto
 			chls[0].asyncSend(std::move(sendBuffs[j]));
 
 
-		//std::cout << IoStream::unlock;
+		gTimer.setTimePoint("r_Poly");
+
+		std::cout << localMasks.size() <<" localMasks.size()\n";
 
 		//#####################Receive Mask #####################
+
+		std::vector<u8> recvBuffs;
+		chls[0].recv(recvBuffs); //receive Hash
+
+
+		block aaa;
+		memcpy((u8*)&aaa, recvBuffs.data(), n1n2MaskBytes);
+		std::cout << aaa << " recvBuffs[0] \n";
+
+
+		auto theirMasks = recvBuffs.data();
+		auto theirNexMasks = recvBuffs.data()+ n1n2MaskBytes;
+
+		bool isOverBound = true;
+		maskLength = hashMaskBytes;
+
+		for (u64 k = 0; k < mTheirInputSize; ++k)
+		{
+			auto& msk = *(u32*)(theirMasks);
+
+			auto match = localMasks.find(msk);
+
+			maskLength = isOverBound ? n1n2MaskBytes : hashMaskBytes;
+
+			if (match != localMasks.end())//if match, check for whole bits
+			{
+				if (memcmp(theirMasks, &match->second.first, maskLength) == 0) // check full mask
+				{
+					if (isMultiThreaded)
+					{
+						std::lock_guard<std::mutex> lock(mtx);
+						mIntersection.push_back(match->second.second);
+					}
+					else
+					{
+						mIntersection.push_back(match->second.second);
+					}
+
+					//std::cout << "r mask: " << match->second.first << "\n";
+
+				}
+			}
+			
+			theirMasks += maskLength;
+			if (memcmp(theirMasks, &ZeroBlock, hashMaskBytes) == 0)
+			{
+				isOverBound = true;
+				theirMasks += n1n2MaskBytes;
+			}
+			else
+			{
+				isOverBound = false;
+				//theirMasks += maskLength;
+
+			}
+			//theirNextMasks += hashMaskBytes;
+
+		}
+			
+
+
 
 		auto receiveMask = [&](u64 t)
 		{
@@ -909,6 +977,8 @@ namespace osuCrypto
 								mIntersection.push_back(match->second.second);
 							}
 
+							std::cout << "r mask: " << match->second.first << "\n";
+
 						}
 					}
 					theirMasks += hashMaskBytes;
@@ -919,15 +989,15 @@ namespace osuCrypto
 
 		};
 
-		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		{
-			thrds[i] = std::thread([=] {
-				receiveMask(i);
-			});
-		}
+		//for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		//{
+		//	thrds[i] = std::thread([=] {
+		//		receiveMask(i);
+		//	});
+		//}
 
-		for (auto& thrd : thrds)
-			thrd.join();
+		//for (auto& thrd : thrds)
+		//	thrd.join();
 
 
 
