@@ -34,6 +34,10 @@ namespace osuCrypto {
 		
 		u64 mFieldSize;
 		ZZ mPrime;
+		ZZ mPrime128 = to_ZZ("340282366920938463463374607431768211507");
+		ZZ mPrime52 = to_ZZ("4503599627370517");
+
+
 		block mTruncateBlk;
 
 
@@ -47,6 +51,7 @@ namespace osuCrypto {
 
 		std::array<block, numSuperBlocks > subRowQForDebug;
 		
+
 		void init(u64 myInputSize, u64 theirInputSize, u64 psiSecParam, PRNG& prng, span<Channel> chls);
 		void output(span<block> inputs, span<Channel> chls);
 		void outputBestComm(span<block> inputs, span<Channel> chls);

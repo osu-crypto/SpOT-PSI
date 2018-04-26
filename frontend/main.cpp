@@ -105,7 +105,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	// set up networking
 	std::string name = "n";
 	IOService ios;
-	Endpoint ep1(ios, "localhost", 1212, EpMode::Server, name);
+	Endpoint ep1(ios, "localhost", 1213, EpMode::Server, name);
 
 	std::vector<Channel> sendChls(numThreads);
 	for (u64 i = 0; i < numThreads; ++i)
@@ -117,7 +117,12 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	gTimer.setTimePoint("s_offline");
 	
-	sender.output(inputs, sendChls);
+	if(inputs.size()!=theirSetSize) //unequal set size
+		sender.outputBigPoly(inputs, sendChls);
+	else
+		sender.output(inputs, sendChls);
+
+
 	gTimer.setTimePoint("s_end");
 	std::cout << gTimer << std::endl;
 
@@ -126,6 +131,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 
 	ep1.stop();	ios.stop();
 }
+
 
 void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 {
@@ -136,7 +142,7 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	// set up networking
 	std::string name = "n";
 	IOService ios;
-	Endpoint ep0(ios, "localhost", 1212, EpMode::Client, name);
+	Endpoint ep0(ios, "localhost", 1213, EpMode::Client, name);
 
 	std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
 	for (u64 i = 0; i < numThreads; ++i)
@@ -150,7 +156,11 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	
 	gTimer.setTimePoint("r_offline");
 	
-	recv.output(inputs, recvChls); //online
+	if (inputs.size() != theirSetSize) //unequal set size
+		recv.outputBigPoly(inputs, recvChls);
+	else
+		recv.output(inputs, recvChls);
+
 	
 	gTimer.setTimePoint("r_end");
 
@@ -557,6 +567,120 @@ void prfOtRow_Test_Impl()
 
 }
 
+void Prty_PSI_impl()
+{
+	setThreadName("Sender");
+	u64 setSenderSize = 1 << 10, setRecvSize = 1 << 8, psiSecParam = 40, numThreads(2);
+
+	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
+
+
+	std::vector<block> sendSet(setSenderSize), recvSet(setRecvSize);
+	for (u64 i = 0; i < setSenderSize; ++i)
+		sendSet[i] = prng0.get<block>();
+
+	for (u64 i = 0; i < setRecvSize; ++i)
+		recvSet[i] = prng0.get<block>();
+
+
+	for (u64 i = 0; i < 10; ++i)
+	{
+		sendSet[i] = recvSet[i];
+		//std::cout << "intersection: " <<sendSet[i] << "\n";
+	}
+
+	// set up networking
+	std::string name = "n";
+	IOService ios;
+	Endpoint ep0(ios, "localhost", 1212, EpMode::Client, name);
+	Endpoint ep1(ios, "localhost", 1212, EpMode::Server, name);
+
+	std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
+	for (u64 i = 0; i < numThreads; ++i)
+	{
+		sendChls[i] = ep1.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
+		recvChls[i] = ep0.addChannel("chl" + std::to_string(i), "chl" + std::to_string(i));
+	}
+
+
+	PrtySender sender;
+	PrtyReceiver recv;
+
+
+	fillOneBlock(mOneBlocks);
+
+	u64 binSize = 40;
+	std::vector<block> X(binSize);
+	std::vector<std::array<block, numSuperBlocks>> rowT(binSize);
+	std::vector<std::array<block, numSuperBlocks>> rowU(binSize);
+	std::vector<std::array<block, numSuperBlocks>> rowQ(binSize);
+	for (u64 i = 0; i < X.size(); i++)
+		X[i] = prng0.get<block>();
+
+	auto thrd = std::thread([&]() {
+		recv.init(recvSet.size(), sendSet.size(), 40, prng1, recvChls);
+		recv.outputBigPoly(recvSet, recvChls);
+
+		/*prfOtRows(X, rowT, recv.mAesT);
+		prfOtRows(X, rowU, recv.mAesU);*/
+
+		/*for (u64 i = 0; i < binSize; ++i)
+		{
+		prfOtRow(X[i], rowT[i], recv.mAesT);
+		prfOtRow(X[i], rowU[i], recv.mAesU);
+		}*/
+
+	});
+
+	sender.init(sendSet.size(), recvSet.size(), 40, prng0, sendChls);
+	sender.outputBigPoly(sendSet, sendChls);
+	//prfOtRows(X, rowQ, sender.mAesQ);
+
+	/*for (u64 i = 0; i < binSize; ++i)
+	prfOtRow(X[i], rowQ[i], sender.mAesQ);*/
+
+	thrd.join();
+
+	auto choiceBlocks = sender.mOtChoices.getSpan<block>(); //s
+
+															//for (u64 i = 0; i < binSize; ++i)
+	for (u64 j = 0; j < numSuperBlocks; ++j)
+	{
+		block rcvBlk = sender.subRowQForDebug[j] ^ ((recv.subRowTForDebug[j] ^ recv.subRowUForDebug[j]) & choiceBlocks[j]); //Q+s*P
+		std::cout << "OT test: " << rcvBlk << "\t" << recv.subRowTForDebug[j] << std::endl;
+
+		rcvBlk = recv.subRowTForDebug[j] ^ recv.subRowUForDebug[j];
+		std::cout << "recv.rowR: " << rcvBlk << std::endl;
+
+	}
+
+
+	std::cout << "recv.mIntersection.size(): " << recv.mIntersection.size() << std::endl;
+	for (u64 i = 0; i < recv.mIntersection.size(); ++i)//thrds.size()
+	{
+		std::cout << "#id: " << recv.mIntersection[i] <<
+			"\t" << recvSet[recv.mIntersection[i]] << std::endl;
+	}
+
+
+
+
+
+	for (u64 i = 0; i < numThreads; ++i)
+
+	{
+		sendChls[i].close(); recvChls[i].close();
+	}
+
+	ep0.stop(); ep1.stop();	ios.stop();
+
+
+
+
+
+}
+
 
 int main(int argc, char** argv)
 {
@@ -565,48 +689,13 @@ int main(int argc, char** argv)
 
 	/*prfOtRow_Test_Impl();
 	return 0; */
-
-	ZZ prime;
-	GenGermainPrime(prime, 128);
-	long degree = 66;
-
-	// init underlying prime field
-	ZZ_p::init(ZZ(prime));
-
-
-	// interpolation points:
-	ZZ_p* x = new ZZ_p[degree + 1];
-	ZZ_p* y = new ZZ_p[degree + 1];
-	ZZ_p* y_recover = new ZZ_p[degree + 1];
-	for (unsigned int i = 0; i <= degree; i++) {
-		NTL::random(x[i]);
-		NTL::random(y[i]);
-		//        cout << "(" << x[i] << "," << y[i] << ")" << endl;
-	}
-
-	ZZ_pX P;
-
-	interpolate_zp(P, x, y, degree, 1, prime);
-
-	multipoint_evaluate_zp(P, x, y_recover, degree, 1, prime);
-
-	for (long i = 0; i < degree + 1; i++) {
-		if (y_recover[i] != y[i]) {
-			std::cout << "Error! x = " << x[i] << ", y = " << y[i] << ", res = " << y_recover[i] << endl;
-			//return;
-		}
-	}
-	std::cout << "Polynomial is interpolated correctly!" << endl;
-
-	Poly_Test_Impl();
-	return 0;
-	
-
 	/*Hashing_Test_Impl();
 	return 0;*/
 
+	/*Prty_PSI_impl();
+	return 0;*/
 	
-	u64 sendSetSize = 1 << 20, recvSetSize = 1 << 20, numThreads = 1;
+	u64 sendSetSize = 1 << 10, recvSetSize = 1 << 8, numThreads = 1;
 
 	if (argc == 9
 		&& argv[3][0] == '-' && argv[3][1] == 'N'
@@ -638,7 +727,7 @@ int main(int argc, char** argv)
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
 	
-	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "| \t numThreads: " << numThreads<< "\n";
+	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "\t | \t numThreads: " << numThreads<< "\n";
 	
 	for (u64 i = 0; i < sendSetSize; ++i)
 		sendSet[i] = prng0.get<block>();

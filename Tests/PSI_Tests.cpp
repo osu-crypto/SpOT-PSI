@@ -266,7 +266,7 @@ namespace tests_libOTe
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
 
-		std::vector<block> inputs(512);
+		std::vector<block> inputs(1024);
 		std::vector<std::array<block, numSuperBlocks>> rowR(inputs.size());
 
 		for (u64 i = 0; i < inputs.size(); ++i)
@@ -276,13 +276,12 @@ namespace tests_libOTe
 				rowR[i][j] = prng0.get<block>();
 		}
 
-		ZZ mPrime;
 		u64 lastPolyMaskBytes = sizeof(block);
 		u64 numThreads = 1;
+		ZZ mPrime = to_ZZ("340282366920938463463374607431768211507");
 
-
-		GenGermainPrime(mPrime, 129);
 		ZZ_p::init(ZZ(mPrime));
+
 
 		u64 degree = inputs.size() - 1;
 		ZZ_p* zzX = new ZZ_p[inputs.size()];
@@ -302,6 +301,10 @@ namespace tests_libOTe
 		{
 			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
 			zzX[idx] = to_ZZ_p(zz);
+		}
+
+		for (u64 idx = 0; idx < inputs.size(); idx++)
+		{
 			ZZFromBytes(zz, (u8*)&rowR[idx][0], sizeof(block));
 			zzY[idx] = to_ZZ_p(zz);
 
@@ -309,7 +312,7 @@ namespace tests_libOTe
 			BytesFromZZ((u8*)&rcvRowR2, rep(zzY[idx]), sizeof(block));
 
 			if(neq(rowR[idx][0], rcvRowR2))
-				std::cout << rowR[idx][0] << "\t ===rowR=== \t " << rcvRowR2 << std::endl;
+				std::cout << "idx: " <<idx <<"  ==  " << rowR[idx][0] << "\t ===BytesFromZZ wrong!=== \t " << rcvRowR2 << std::endl;
 
 		}
 
@@ -319,20 +322,29 @@ namespace tests_libOTe
 		u64 iterSends = 0;
 		sendBuffs.resize(inputs.size() * sizeof(block));
 
+		std::vector<block> coeff(degree+1);// = new u8[sizeof(block) + 1];
+
+
 		for (int c = 0; c <= degree; c++) {
 			//std::vector<u8> coeff(sizeof(block));
 
-			u8* coeff =new u8[sizeof(block) + 1];
 
-			BytesFromZZ(coeff, rep(Polynomials.rep[c]), sizeof(block)+1);
-			ZZFromBytes(zz, coeff, sizeof(block)+1);
+			BytesFromZZ((u8*)&coeff[c], rep(Polynomials.rep[c]), sizeof(block));
+			ZZFromBytes(zz, (u8*)&coeff[c], sizeof(block));
 
 
 			if (to_ZZ_p(zz) != Polynomials.rep[c])
-				std::cout << Polynomials.rep[c] << "\t ===coeff=== \t " << to_ZZ_p(zz) << std::endl;
+				std::cout << "idx: " << c << "   "<<  Polynomials.rep[c] << "\t ===to_ZZ_p(zz) != Polynomials.rep[c]=== \t " << to_ZZ_p(zz) << std::endl;
+
+		}
 
 
-			memcpy(sendBuffs.data() + iterSends, (u8*)&coeff, sizeof(block));
+		for (int c = 0; c <= degree; c++) {
+			//std::vector<u8> coeff(sizeof(block));
+
+
+
+			memcpy(sendBuffs.data() + iterSends, (u8*)&coeff[c], sizeof(block));
 			iterSends += sizeof(block);
 		}
 
@@ -355,7 +367,8 @@ namespace tests_libOTe
 			iterRecvs += sizeof(block);
 
 			ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
-			SetCoeff(recvPolynomials, c, Polynomials.rep[c]);
+			//SetCoeff(recvPolynomials, c, Polynomials.rep[c]);
+			SetCoeff(recvPolynomials, c, to_ZZ_p(zz));
 		}
 
 
@@ -408,7 +421,7 @@ namespace tests_libOTe
 
 
 				if (neq(rcvRowR, rowR[i][0]))
-				std::cout << "FFT: " << i << "," << rcvRowR << "\t" << rowR[i][0] << std::endl;
+				std::cout << "Unrecovered Y_: " << i << "," << rcvRowR << "\t" << rowR[i][0] << std::endl;
 
 		
 
@@ -720,7 +733,7 @@ namespace tests_libOTe
 	void Prty_PSI_impl()
 	{
 		setThreadName("Sender");
-		u64 setSenderSize = 1 << 8, setRecvSize = 1 << 8, psiSecParam = 40, numThreads(1);
+		u64 setSenderSize = 1 << 10, setRecvSize = 1 << 8, psiSecParam = 40, numThreads(2);
 
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 		PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
@@ -734,7 +747,7 @@ namespace tests_libOTe
 			recvSet[i] = prng0.get<block>();
 
 
-		for (u64 i = 0; i < setRecvSize; ++i)
+		for (u64 i = 0; i < 10; ++i)
 		{
 			sendSet[i] = recvSet[i];
 			//std::cout << "intersection: " <<sendSet[i] << "\n";
@@ -801,7 +814,7 @@ namespace tests_libOTe
 			std::cout << "OT test: " << rcvBlk << "\t" << recv.subRowTForDebug[j] << std::endl;
 
 			rcvBlk = recv.subRowTForDebug[j] ^ recv.subRowUForDebug[j];
-			std::cout << "rowR: " << rcvBlk << std::endl;
+			std::cout << "recv.rowR: " << rcvBlk << std::endl;
 
 		}
 

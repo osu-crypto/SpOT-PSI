@@ -553,3 +553,5 @@ r_end          646374.0  621661.253  *******************************************
 
 recv.mIntersection  : 100
 expectedIntersection: 100
+
+./bin/frontend.exe -r 1 -N 20 -n 11041 -t 1 & ./bin/frontend.exe -r 0 -N 20 -n 11041 -t 1

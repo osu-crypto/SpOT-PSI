@@ -28,10 +28,14 @@ namespace osuCrypto
 
 	static const u64 bIdxForDebug(3), iIdxForDebug(0), hIdxForDebug(0);
 
-
+	
 
 	inline u64 getFieldSizeInBits(u64 setSize)
 	{
+
+		//return 512;
+
+
 		if (setSize <= (1 << 10))
 			return 416;
 		else if (setSize <= (1 << 12))

@@ -57,16 +57,7 @@ namespace osuCrypto
 		simple.init(mTheirInputSize, recvMaxBinSize, recvNumDummies);
 
 		//mAesHasher.setKey(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
-
-//#ifdef NTL_Threads_ON
-//		GenGermainPrime(mPrime, primeLong);
-//#else
-//		std::cout << IoStream::lock;
-//		GenGermainPrime(mPrime, primeLong);
-//		std::cout << IoStream::unlock;
-//#endif // NTL_Threads_ON
-
-		
+	
 
 	}
 
@@ -277,53 +268,7 @@ namespace osuCrypto
 
 				}
 
-#if 0
-
-					u64 degree = rowQ.size() - 1;
-					ZZ_p::init(ZZ(mPrime));
-					ZZ zz;
-					ZZ_p* zzX = new ZZ_p[subIdxItems.size()];
-					ZZ_p* zzY = new ZZ_p[rowQ.size()];
-					ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
-					block rcvBlk;
-					ZZ_pX recvPoly;
-					ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
-
-
-
-					for (u64 idx = 0; idx < subIdxItems.size(); ++idx)
-					{
-						ZZFromBytes(zz, (u8*)&inputs[subIdxItems[idx]], sizeof(block));
-						zzX[idx] = to_ZZ_p(zz);
-					}
-
-					build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
-
-
-					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-					{
-						for (int c = 0; c<degree; c++) {
-							memcpy((u8*)&rcvBlk, recvBuff.data() + (k*j*rowQ.size() + c) * sizeof(block), sizeof(block));
-							ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
-							SetCoeff(recvPoly, c, to_ZZ_p(zz));
-						}
-
-						evaluate(recvPoly, p_tree, reminders, degree * 2 + 1, zzY, 1, mPrime);
-
-						for (int idx = 0; idx < rowQ.size(); idx++) {
-							BytesFromZZ((u8*)&rcvBlk, rep(zzY[idx]), sizeof(block));
-							rcvBlk = rowQ[idx][j]^(rcvBlk&choiceBlocks[j]); //Q+s*P
-
-							localHashes[idx]=simple.mAesHasher.ecbEncBlock(rcvBlk)^ localHashes[idx]; //compute H(Q+s*P)=xor of all slices
-						}
-
-					}
-
-					for (int idx = 0; idx < localHashes.size(); idx++) {
-						memcpy(sendBuff.data() + (k*simple.mMaxBinSize+idx)*hashMaskBytes, (u8*)&localHashes[idx], hashMaskBytes);
-					}
-#endif
-			}
+	}
 		};
 
 		
@@ -799,7 +744,7 @@ namespace osuCrypto
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
-		u64 hashMaskBytes = (40 + log2(mTheirInputSize) + 7) / 8;
+		u64 hashMaskBytes =  (40 + log2(mTheirInputSize) + 7) / 8;
 		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
 
 		auto choiceBlocks = mOtChoices.getSpan<block>(); //s
@@ -830,17 +775,13 @@ namespace osuCrypto
 			u64 startIdx = mMyInputSize * t / numThreads;
 			u64 tempEndIdx = mMyInputSize* (t + 1) / numThreads;
 			u64 endIdx = std::min(tempEndIdx, mMyInputSize);
-			std::vector<block> X;
+			std::vector<block> X(endIdx - startIdx);
 
-			//std::vector<std::array<block, numSuperBlocks>> tempRowQ;
 			subRowQ[t].resize(endIdx - startIdx);
-			X.resize(endIdx - startIdx);
-			for (u64 i = 0; i < X.size(); i++)
-			{
-				X[i] = inputs[startIdx+i];
-			}
 
-			//memcpy((block*)&X[t], (block*)&inputs[startIdx], (endIdx - startIdx) * sizeof(block));
+			for (u64 i = 0; i < X.size(); i++)
+				memcpy(&X[i], &inputs[startIdx + i], sizeof(block));
+
 			prfOtRows(X, subRowQ[t], mAesQ);
 
 		};
@@ -890,107 +831,82 @@ namespace osuCrypto
 			chls[0].recv(recvBuffs[3]);
 		}
 
-
-		//std::cout << IoStream::lock;
-
 		u64 degree = mTheirInputSize - 1;
-		GenGermainPrime(mPrime, primeLong);
+		mPrime = mPrime128;
 		ZZ_p::init(ZZ(mPrime));
-
-		ZZ zz;
-		ZZ_p* zzX = new ZZ_p[inputs.size()];
-		std::array<ZZ_p*, numSuperBlocks> zzY;
 		
-		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
-		block rcvBlk;
-		ZZ_pX recvPoly;
-		ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+		ZZ_p* zzX = new ZZ_p[inputs.size()];
+		ZZ zz;
+		u64 maskLength;
 
-		for (u64 idx = 0; idx < inputs.size(); ++idx)
+
+		for (u64 idx = 0; idx < inputs.size(); idx++)
 		{
 			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
 			zzX[idx] = to_ZZ_p(zz);
 		}
 
+
+		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+		ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+
+		std::array<ZZ_p*, numSuperBlocks> zzY1;
+		for (u64 i = 0; i < numSuperBlocks; i++)
+			zzY1[i] = new ZZ_p[inputs.size()];
+
 		build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+		block rcvBlk;
 
+		std::array<ZZ_pX, numSuperBlocks> recvPolynomials;
 
-		std::array<u64, numSuperBlocks> iterRecvs;
-
-		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+		for (u64 idxBlk = 0; idxBlk < numSuperBlocks; idxBlk++)
 		{
-			zzY[j] = new ZZ_p[inputs.size()];
+			u64 iterRecvs = 0;
+			maskLength = (idxBlk == numSuperBlocks - 1) ? lastPolyMaskBytes : sizeof(block);
 
+			for (int c = 0; c <= degree; c++) {
+				memcpy((u8*)&rcvBlk, recvBuffs[idxBlk].data() + iterRecvs, maskLength);
+				iterRecvs += maskLength;
 
-			iterRecvs[j] = 0;
-			if (j == numSuperBlocks - 1)
-			{
-				for (int c = 0; c <= degree; c++) {
-					memcpy((u8*)&rcvBlk, recvBuffs[j].data() + iterRecvs[j], lastPolyMaskBytes);
-					iterRecvs[j] += lastPolyMaskBytes;
-				
-					//std::cout << "s SetCoeff: " << rcvBlk << std::endl;
-
-
-					ZZFromBytes(zz, (u8*)&rcvBlk, lastPolyMaskBytes);
-					SetCoeff(recvPoly, c, to_ZZ_p(zz));
-				}
-			}
-			else
-			{
-				for (int c = 0; c <= degree; c++) {
-					memcpy((u8*)&rcvBlk, recvBuffs[j].data() + iterRecvs[j], sizeof(block));
-					iterRecvs[j] += sizeof(block);
-
-					//std::cout << "s SetCoeff: " << rcvBlk << std::endl;
-
-
-					ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
-					SetCoeff(recvPoly, c, to_ZZ_p(zz));
-				}
+				ZZFromBytes(zz, (u8*)&rcvBlk, maskLength);
+				SetCoeff(recvPolynomials[idxBlk], c, to_ZZ_p(zz));
 			}
 
 
+			evaluate(recvPolynomials[idxBlk], p_tree, reminders, degree * 2 + 1, zzY1[idxBlk], numThreads, mPrime);
 
-			evaluate(recvPoly, p_tree, reminders, degree * 2 + 1, zzY[j], numThreads, mPrime);
+			block rcvRowR;
+			BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][0]), maskLength);
+			std::cout << "s rcvRowR: " << rcvRowR << std::endl;
+
 		}
 
-		//std::cout << IoStream::unlock;
 
-
-		auto computeMask = [&](u64 t)
+		auto computeGlobalHash = [&](u64 t)
 		{
 			u64 startIdx = mMyInputSize * t / numThreads;
 			u64 tempEndIdx = mMyInputSize* (t + 1) / numThreads;
 			u64 endIdx = std::min(tempEndIdx, mMyInputSize);
-
 			std::array<block, numSuperBlocks> recvRowT;
-			block rcvRowR;
 			std::vector<block> cipher(4);
 
-
-			for (int idx = 0; idx < subRowQ[t].size(); idx++)
+			for (u64 idx = 0; idx < endIdx - startIdx; idx++)
 			{
-				for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+				u64 idxItem = startIdx + idx;
+
+				for (u64 idxBlk = 0; idxBlk < numSuperBlocks; ++idxBlk) //slicing
 				{
-					if (j == numSuperBlocks - 1) //get last 440-3*128 bits
-						BytesFromZZ((u8*)&rcvRowR, rep(zzY[j][startIdx+idx]), lastPolyMaskBytes);
-					else
-						BytesFromZZ((u8*)&rcvRowR, rep(zzY[j][startIdx +idx]), sizeof(block));
+					block rcvRowR;
+					maskLength = (idxBlk == numSuperBlocks - 1) ? lastPolyMaskBytes : sizeof(block);
+					BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][idxItem]), maskLength);
 
+					recvRowT[idxBlk] = subRowQ[t][idx][idxBlk] ^ (rcvRowR & choiceBlocks[idxBlk]); //Q+s*P
 
-					if (t == 0 && idx == 0)
-						std::cout << "s rcvRowR: " << rcvRowR << std::endl;
+					if (idxBlk == numSuperBlocks - 1) //get last 440-3*128 bits
+						recvRowT[idxBlk] = recvRowT[idxBlk] & mTruncateBlk;
 
-
-					recvRowT[j] = subRowQ[t][idx][j] ^ (rcvRowR & choiceBlocks[j]); //Q+s*P
-
-					if (j == numSuperBlocks - 1) //get last 440-3*128 bits
-						recvRowT[j] = recvRowT[j] & mTruncateBlk;
-
-					if(t==0 && idx==0)
-						std::cout << "recvRowT: " << recvRowT [j]<< std::endl;
-
+					if (idxItem == 0)
+						std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;
 
 				}
 
@@ -999,10 +915,10 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
+				//std::cout << cipher[0] << " " << idxItem <<" == S cipher[0]\n";
 
-				//globalHash[hashIdx][idxPermuteDone[hashIdx]++] = cipher[0];
-				memcpy(globalHash.data() + startIdx+idx, (u8*)&cipher[0], sizeof(block));
 
+				memcpy(globalHash.data() + idxItem, (u8*)&cipher[0], sizeof(block));
 			}
 
 		};
@@ -1011,15 +927,15 @@ namespace osuCrypto
 		for (u64 i = 0; i < thrds.size(); ++i)
 		{
 			thrds[i] = std::thread([=] {
-				computeMask(i);
+				computeGlobalHash(i);
 			});
 		}
-
 		for (auto& thrd : thrds)
 			thrd.join();
 
 		gTimer.setTimePoint("computeMask");
 
+#if 1
 		//=====================Sort=====================
 
 		auto ss = [](const block& lhs, const block& rhs) -> bool {
@@ -1055,7 +971,8 @@ namespace osuCrypto
 					block diff;
 					for (u64 idx = 1; idx < curStepSize; idx++)
 					{
-						diff = globalHash[idx] ^ globalHash[idx - 1];
+						//diff = globalHash[idx] ^ globalHash[idx - 1];
+						diff = globalHash[startIdx+idx];
 						memcpy(sendBuff.data() + idx*hashMaskBytes, (u8*)&diff, hashMaskBytes);
 
 					}
@@ -1075,17 +992,18 @@ namespace osuCrypto
 			}
 		};
 
-		//for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		//{
-		//	thrds[i] = std::thread([=] {
-		//		sendingMask(i);
-		//	});
-		//}
+		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		{
+			thrds[i] = std::thread([=] {
+				sendingMask(i);
+			});
+		}
 
-		//for (auto& thrd : thrds)
-		//	thrd.join();
+		for (auto& thrd : thrds)
+			thrd.join();
 
 
+#endif
 #endif
 	}
 
