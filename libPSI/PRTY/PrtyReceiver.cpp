@@ -871,6 +871,7 @@ namespace osuCrypto
 
 		//#####################Receive Mask #####################
 
+
 		std::vector<u8> recvBuffs;
 		chls[0].recv(recvBuffs); //receive Hash
 
@@ -879,24 +880,35 @@ namespace osuCrypto
 		memcpy((u8*)&aaa, recvBuffs.data(), n1n2MaskBytes);
 		std::cout << aaa << " recvBuffs[0] \n";
 
+		block theirMasks, theirDiff;
+
+		memcpy((u8*)&theirMasks, recvBuffs.data(), n1n2MaskBytes);
+		memcpy((u8*)&theirDiff, recvBuffs.data() + n1n2MaskBytes, n1n2MaskBytes);
+
+
+		/*auto theirMasks = recvBuffs.data();
 
 		auto theirMasks = recvBuffs.data();
-		auto theirNexMasks = recvBuffs.data()+ n1n2MaskBytes;
+		auto theirDiff = recvBuffs.data()+ n1n2MaskBytes;*/
 
 		bool isOverBound = true;
 		maskLength = hashMaskBytes;
 
-		for (u64 k = 0; k < mTheirInputSize; ++k)
-		{
-			auto& msk = *(u32*)(theirMasks);
 
-			auto match = localMasks.find(msk);
+		u64 iterTheirMask = 0;
+		u64 iterTheirDiff = n1n2MaskBytes;
+		u64 iterX = 0;
+
+		while(iterTheirDiff<recvBuffs.size())
+		{
+
+			auto match = localMasks.find(*(u32*)&theirMasks);
 
 			maskLength = isOverBound ? n1n2MaskBytes : hashMaskBytes;
 
 			if (match != localMasks.end())//if match, check for whole bits
 			{
-				if (memcmp(theirMasks, &match->second.first, maskLength) == 0) // check full mask
+				if (memcmp((u8*)&theirMasks, &match->second.first, maskLength) == 0) // check full mask
 				{
 					if (isMultiThreaded)
 					{
@@ -913,20 +925,34 @@ namespace osuCrypto
 				}
 			}
 			
-			theirMasks += maskLength;
-			if (memcmp(theirMasks, &ZeroBlock, hashMaskBytes) == 0)
+			if (memcmp((u8*)&theirDiff, &ZeroBlock, hashMaskBytes) == 0)
 			{
 				isOverBound = true;
-				theirMasks += n1n2MaskBytes;
+				iterTheirMask = iterTheirDiff + hashMaskBytes;
+				memcpy((u8*)&theirMasks, recvBuffs.data() + iterTheirMask, n1n2MaskBytes);
+				
+				iterTheirDiff = iterTheirMask + n1n2MaskBytes;
+				memcpy((u8*)&theirDiff, recvBuffs.data() + iterTheirDiff, n1n2MaskBytes);
+
 			}
 			else
 			{
+				block next=theirDiff + theirMasks;
+				//std::cout << "r mask: " << iterX << "  " << next << " - " << theirMasks << " ===diff:===" << theirDiff << "\n";
+
+				theirMasks = next;
+
+
+				if(isOverBound)
+					iterTheirMask += n1n2MaskBytes;
+				else
+					iterTheirMask += hashMaskBytes;
+
+				iterTheirDiff += hashMaskBytes;
+				memcpy((u8*)&theirDiff, recvBuffs.data() + iterTheirDiff, hashMaskBytes);
 				isOverBound = false;
-				//theirMasks += maskLength;
-
 			}
-			//theirNextMasks += hashMaskBytes;
-
+			iterX++;
 		}
 			
 

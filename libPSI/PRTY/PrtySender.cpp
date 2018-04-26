@@ -974,6 +974,12 @@ namespace osuCrypto
 		memcpy(sendBuff.data(), (u8*)&globalHash[0], n1n2MaskBytes);
 		iterSendDiff += n1n2MaskBytes;
 
+
+		block aaa = ZeroBlock;
+		memcpy((u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
+		std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";
+
+
 		block diff;
 		for (u64 idx = 0; idx < inputs.size()-1; idx++)
 		{
@@ -987,7 +993,7 @@ namespace osuCrypto
 			}
 			else
 			{
-				//std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
+				std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
 
 				memcpy(sendBuff.data() + iterSendDiff, (u8*)&ZeroBlock, hashMaskBytes);
 				iterSendDiff += hashMaskBytes;
@@ -1000,14 +1006,14 @@ namespace osuCrypto
 				std::cout << "iterSendDiff > sendBuff.size(): " << iterSendDiff << "\t" << sendBuff.size() << "\n";
 				sendBuff.resize(sendBuff.size() + (inputs.size() - iterSendDiff)*hashMaskBytes);
 			}
-			//std::cout << idx << " idx \n";
+
+			//std::cout << "s mask: " << idx << "  " << globalHash[idx+1] << " - " <<globalHash[idx] << " ===diff:===" << diff << "\n";
+
 		}
 		//memcpy(sendBuff.data() + iterSendDiff, (u8*)& ZeroBlock, sendBuff.size()- iterSendDiff);
 
 		
-		block aaa=ZeroBlock;
-		memcpy( (u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
-		std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";
+		
 
 		chls[0].asyncSend(std::move(sendBuff));
 
