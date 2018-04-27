@@ -141,7 +141,7 @@ namespace osuCrypto
 					}
 
 				}
-				std::cout << sendBuff.size() << "  sendBuff.size()\n";
+				//std::cout << sendBuff.size() << "  sendBuff.size()\n";
 
 				chl.asyncSend(std::move(sendBuff)); //send poly
 
@@ -303,13 +303,15 @@ namespace osuCrypto
 
 	void PrtyReceiver::outputBestComm(span<block> inputs, span<Channel> chls)
 	{
-#if 1
+
 		u64 numThreads(chls.size());
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
-		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
-		u64 hashMaskBytes = (40 + log2(mMyInputSize) + 7) / 8;
+		u64 hashMaskBytes = (40 + log2(mMyInputSize) + 2 + 7) / 8;
+		u64 n1n2MaskBits = (40 + log2(mTheirInputSize*mMyInputSize));
+		u64 n1n2MaskBytes = (n1n2MaskBits + 7) / 8;
+
 
 		//=====================Balaced Allocation=====================
 		//gTimer.reset();
@@ -321,7 +323,7 @@ namespace osuCrypto
 		mBalance.print(inputs);
 		std::cout << IoStream::unlock;*/
 
-		std::array<std::unordered_map<u64, std::pair<block, u64>>, 2> localMasks; //for hash 0 and 1
+		std::array<std::unordered_map<u32, std::pair<block, u64>>, 2> localMasks; //for hash 0 and 1
 		localMasks[0].reserve(inputs.size());//for hash 0
 		localMasks[1].reserve(inputs.size());//for hash 1
 
@@ -416,52 +418,11 @@ namespace osuCrypto
 
 #endif // GF2X_Slicing
 
-#if 0
-
-					ZZ_p::init(ZZ(mPrime));
-					u64 degree = rowR.size() - 1;
-					ZZ_p::init(ZZ(mPrime));
-					ZZ_p* zzX = new ZZ_p[rowR.size()];
-					ZZ_p* zzY = new ZZ_p[rowR.size()];
-					ZZ zz;
-					ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
-					ZZ_p *a = new ZZ_p[degree + 1];;
-					ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
-					ZZ_pX Polynomial;
-
-					for (u64 idx = 0; idx < cntRows; ++idx)
-					{
-						ZZFromBytes(zz, (u8*)&inputs[subIdxItems[k*mBalance.mMaxBinSize + idx]], sizeof(block));
-						zzX[idx] = to_ZZ_p(zz);
-					}
-
-					for (u64 idx = cntRows; idx < rowR.size(); ++idx) //dummy
-						random(zzX[idx]);
-
-					prepareForInterpolate(zzX, degree, M, a, 1, mPrime);
-
-					for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-					{
-						for (u64 idx = 0; idx < rowR.size(); ++idx)
-						{
-							ZZFromBytes(zz, (u8*)&rowR[idx][j], sizeof(block));
-							zzY[idx] = to_ZZ_p(zz);
-						}
-
-						iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, 1, mPrime);
-
-						for (int c = 0; c < degree; c++) {
-							BytesFromZZ(sendBuff.data() + (k*j*rowR.size() + c) * sizeof(block), rep(Polynomial.rep[c]), sizeof(block));
-						}
-					}
-#endif
-
 				}
 
 				chl.asyncSend(std::move(sendBuff)); //send poly
 				sendBuff.clear();
 
-#if 1
 				std::vector<block> cipher(4);
 				for (u64 k = 0; k < curStepSize; ++k)
 				{
@@ -481,21 +442,18 @@ namespace osuCrypto
 						recvMaskForDebug = cipher;
 						}*/
 
-						//std::cout << IoStream::lock;
 						if (isMultiThreaded)
 						{
 							std::lock_guard<std::mutex> lock(mtx);
-							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
+							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u32*)&cipher[0]
 								, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
 						}
 						else
 						{
-							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u64*)&cipher[0]
+							localMasks[mBalance.mBins[bIdx].hashIdxs[idx]].emplace(*(u32*)&cipher[0]
 								, std::pair<block, u64>(cipher[0], mBalance.mBins[bIdx].idxs[idx]));
 						}
 
-
-						//std::cout << IoStream::unlock;
 					}
 				}
 
@@ -528,114 +486,119 @@ namespace osuCrypto
 #endif // PSI_PRIN
 		//#####################Receive Mask #####################
 
+		
 
-		auto receiveMask = [&](u64 t)
-		{
-			auto& chl = chls[t]; //parallel along with inputs
-			u64 startIdx = mTheirInputSize * t / numThreads;
-			u64 tempEndIdx = mTheirInputSize* (t + 1) / numThreads;
-			u64 endIdx = std::min(tempEndIdx, mTheirInputSize);
-
-
-			for (u64 i = startIdx; i < endIdx; i += stepSizeMaskSent)
+		auto receivingMasks = [&](u64 hIdx, Channel chl)
 			{
-				auto curStepSize = std::min(stepSizeMaskSent, endIdx - i);
+
 				std::vector<u8> recvBuffs;
+				chl.recv(recvBuffs); //receive Hash
 
-				//receive the sender's marks, we have 2 buffs that corresponding to the mask of elements used hash index 0,1
-				for (u64 hIdx = 0; hIdx < 2; hIdx++)
+
+				/*block aaa;
+				memcpy((u8*)&aaa, recvBuffs.data(), n1n2MaskBytes);
+				std::cout << aaa << " recvBuffs[0] \n";*/
+
+				block theirMasks, theirDiff;
+
+				memcpy((u8*)&theirMasks, recvBuffs.data(), n1n2MaskBytes);
+				memcpy((u8*)&theirDiff, recvBuffs.data() + n1n2MaskBytes, n1n2MaskBytes);
+
+
+				/*auto theirMasks = recvBuffs.data();
+
+				auto theirMasks = recvBuffs.data();
+				auto theirDiff = recvBuffs.data()+ n1n2MaskBytes;*/
+
+				bool isOverBound = true;
+				u64 maskLength = hashMaskBytes;
+
+
+				u64 iterTheirMask = 0;
+				u64 iterTheirDiff = n1n2MaskBytes;
+				u64 iterX = 0;
+
+				while (iterTheirDiff < recvBuffs.size())
 				{
-					chl.recv(recvBuffs); //receive Hash
 
-					auto theirMasks = recvBuffs.data();
-					auto theirNextMasks = theirMasks + hashMaskBytes;
+					auto match = localMasks[hIdx].find(*(u32*)&theirMasks);
 
-					if (hashMaskBytes >= sizeof(u64)) //unordered_map only work for key >= 64 bits. i.e. setsize >=2^12
+					maskLength = isOverBound ? n1n2MaskBytes : hashMaskBytes;
+
+					if (match != localMasks[hIdx].end())//if match, check for whole bits
 					{
-						for (u64 k = 0; k < curStepSize; ++k)
+						if (memcmp((u8*)&theirMasks, &match->second.first, maskLength) == 0) // check full mask
 						{
-
-							auto& msk = *(u64*)(theirMasks);
-							auto& mskNext = *(u64*)(theirNextMasks);
-
-							if (k > 0)
-								msk = msk^mskNext;
-
-							// check 64 first bits
-							auto match = localMasks[hIdx].find(msk);
-
-							//if match, check for whole bits
-							if (match != localMasks[hIdx].end())
+							if (isMultiThreaded)
 							{
-								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
-								{
-									if (isMultiThreaded)
-									{
-										std::lock_guard<std::mutex> lock(mtx);
-										mIntersection.push_back(match->second.second);
-									}
-									else
-									{
-										mIntersection.push_back(match->second.second);
-									}
-
-									/*std::cout << IoStream::lock;
-									mIntersection.push_back(match->second.second);
-									std::cout << IoStream::unlock;*/
-
-
-									/*std::cout << "#id: " << match->second.second <<
-									"\t" << inputs[match->second.second] << std::endl;*/
-									/*block globalTest;
-									memcpy((u8*)&globalTest, (u8*)msk, hashMaskBytes);
-									std::cout << "theirMasks " << hIdx << " " << k << "\t" << globalTest << "\n";*/
-
-
-								}
+								std::lock_guard<std::mutex> lock(mtx);
+								mIntersection.push_back(match->second.second);
 							}
-							theirMasks += hashMaskBytes;
-							theirNextMasks += hashMaskBytes;
+							else
+							{
+								mIntersection.push_back(match->second.second);
+							}
+
+							//std::cout << "r mask: " << match->second.first << "\n";
 
 						}
 					}
-					else //for small set, do O(n^2) check
+
+					if (memcmp((u8*)&theirDiff, &ZeroBlock, hashMaskBytes) == 0)
 					{
-						for (u64 k = 0; k < curStepSize; ++k)
-						{
+						isOverBound = true;
+						iterTheirMask = iterTheirDiff + hashMaskBytes;
+						memcpy((u8*)&theirMasks, recvBuffs.data() + iterTheirMask, n1n2MaskBytes);
 
-							for (auto match = localMasks[hIdx].begin(); match != localMasks[hIdx].end(); ++match)
-							{
-								if (memcmp(theirMasks, &match->second.first, hashMaskBytes) == 0) // check full mask
-								{
-									mIntersection.push_back(match->second.second);
-								}
-								theirMasks += hashMaskBytes;
-							}
-						}
+						iterTheirDiff = iterTheirMask + n1n2MaskBytes;
+						memcpy((u8*)&theirDiff, recvBuffs.data() + iterTheirDiff, n1n2MaskBytes);
+
 					}
+					else
+					{
+						block next = theirDiff + theirMasks;
+
+						/*std::cout << IoStream::lock;
+						std::cout << "r mask: " << iterX << "  " << next << " - " << theirMasks << " ===diff:===" << theirDiff << "\n";
+						std::cout << IoStream::unlock;*/
+
+						theirMasks = next;
 
 
+						if (isOverBound)
+							iterTheirMask += n1n2MaskBytes;
+						else
+							iterTheirMask += hashMaskBytes;
+
+						iterTheirDiff += hashMaskBytes;
+						memcpy((u8*)&theirDiff, recvBuffs.data() + iterTheirDiff, hashMaskBytes);
+						isOverBound = false;
+					}
+					iterX++;
+				}
+			};
+
+	
+			if (isMultiThreaded)
+			{
+				for (u64 i = 0; i <2; ++i)
+				{
+					thrds[i] = std::thread([=] {
+						receivingMasks(i,chls[i]);
+					});
 				}
 
-#endif
-
-
-
+				for (u64 i = 0; i < 2; ++i)
+					thrds[i].join();
+			}
+			else
+			{
+				receivingMasks(0, chls[0]);
+				receivingMasks(1, chls[0]);
 			}
 
-		};
+			
 
-		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		{
-			thrds[i] = std::thread([=] {
-				receiveMask(i);
-			});
-		}
-
-		for (auto& thrd : thrds)
-			thrd.join();
-
-#endif
 	}
 
 
@@ -710,8 +673,8 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
-				if (startIdx + i == 0)
-					std::cout << cipher[0] << " " << startIdx + i << " == R cipher[0]\n";
+				/*if (startIdx + i == 0)
+					std::cout << cipher[0] << " " << startIdx + i << " == R cipher[0]\n";*/
 
 
 				if (isMultiThreaded)
@@ -800,9 +763,9 @@ namespace osuCrypto
 		}
 
 		{ //last slice
-			mPrime = to_ZZ("1461501637330902918203684832716283019655932542983");  //nextprime(2^160)
+			mPrimeLastSlice = getPrimeLastSlice(mFieldSize);
 
-			ZZ_p::init(ZZ(mPrime));
+			ZZ_p::init(ZZ(mPrimeLastSlice));
 
 			u64 degree = inputs.size() - 1;
 			ZZ_p* zzX = new ZZ_p[inputs.size()];
@@ -829,9 +792,9 @@ namespace osuCrypto
 			}
 
 
-			prepareForInterpolate(zzX, degree, M, a, 1, mPrime);
+			prepareForInterpolate(zzX, degree, M, a, 1, mPrimeLastSlice);
 
-			iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, numThreads, mPrime);
+			iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, numThreads, mPrimeLastSlice);
 
 			u64 iterSends = 0;
 			sendBuff.resize(inputs.size() * lastPolyMaskBytes);
@@ -916,7 +879,7 @@ namespace osuCrypto
 
 		gTimer.setTimePoint("r_Poly");
 
-		std::cout << localMasks.size() << " localMasks.size()\n";
+		//std::cout << localMasks.size() << " localMasks.size()\n";
 
 		//#####################Receive Mask #####################
 
@@ -925,9 +888,9 @@ namespace osuCrypto
 		chls[0].recv(recvBuffs); //receive Hash
 
 
-		block aaa;
+		/*block aaa;
 		memcpy((u8*)&aaa, recvBuffs.data(), n1n2MaskBytes);
-		std::cout << aaa << " recvBuffs[0] \n";
+		std::cout << aaa << " recvBuffs[0] \n";*/
 
 		block theirMasks, theirDiff;
 

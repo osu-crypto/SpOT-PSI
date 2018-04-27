@@ -258,3 +258,54 @@ setSize                         |  offline(ms)  |  online(ms)
 1048576 vs 1048576-- Offline Avg Time: 876 ms
 1048576 vs 1048576-- Total Avg Time: 17467 ms
 
+
+bash-4.2$ /scratch/setup-network on 0.2 10000
+
+-bash-4.2$ ./Release/bOPRFmain.exe -r 0 & ./Release/bOPRFmain.exe -r 1
+[1] 53326
+BopSender()
+role  = sender (1) SSOtPSI
+BopRecv()
+role  = recv (1) SSOtPSI
+--------------------------
+setSize                         |  offline(ms)  |  online(ms)
+16777216 vs 16777216                            8241            55150
+16777216 vs 16777216-- Online Avg Time: 55150 ms
+16777216 vs 16777216-- Offline Avg Time: 8241 ms
+16777216 vs 16777216-- Total Avg Time: 63391 ms
+
+-bash-4.2$ /scratch/setup-network on 80 100
+
+-bash-4.2$ ./Release/bOPRFmain.exe -r 0 & ./Release/bOPRFmain.exe -r 1
+[2] 53737
+BopSender()
+role  = sender (1) SSOtPSI
+BopRecv()
+role  = recv (1) SSOtPSI
+--------------------------
+setSize                         |  offline(ms)  |  online(ms)
+16777216 vs 16777216                            8306            253674
+16777216 vs 16777216-- Online Avg Time: 253674 ms
+16777216 vs 16777216-- Offline Avg Time: 8306 ms
+16777216 vs 16777216-- Total Avg Time: 261980 ms
+--------------------------
+[2]-  Done                    ./Release/bOPRFmain.exe -r 0
+
+
+-bash-4.2$ /scratch/setup-network on 80 10
+-bash-4.2$
+-bash-4.2$ ./Release/bOPRFmain.exe -r 0 & ./Release/bOPRFmain.exe -r 1
+[2] 54244
+BopRecv()
+BopSender()
+role  = sender (1) SSOtPSI
+role  = recv (1) SSOtPSI
+--------------------------
+setSize                         |  offline(ms)  |  online(ms)
+16777216 vs 16777216                            8776            1843344
+16777216 vs 16777216-- Online Avg Time: 1843344 ms
+16777216 vs 16777216-- Offline Avg Time: 8776 ms
+16777216 vs 16777216-- Total Avg Time: 1852120 ms
+
+
+

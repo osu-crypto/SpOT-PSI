@@ -18,6 +18,7 @@ namespace osuCrypto
 			//std::vector<item> values; //index of items
 			std::vector<block> blks;
 			std::vector<u8> hashIdxs;
+		//	std::vector<u64> Idxs;
 		};
 
 

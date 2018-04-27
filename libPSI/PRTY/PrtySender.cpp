@@ -371,8 +371,13 @@ namespace osuCrypto
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
-		u64 hashMaskBytes = (40 + log2(mTheirInputSize) + 7) / 8;
-		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
+		
+		u64 hashMaskBits = (40 + log2(mTheirInputSize) + 2);
+		u64 hashMaskBytes = (hashMaskBits + 7) / 8;
+
+		u64 n1n2MaskBits = (40 + log2(mTheirInputSize*mMyInputSize));
+		u64 n1n2MaskBytes = (n1n2MaskBits + 7) / 8;
+
 
 		auto choiceBlocks = mOtChoices.getSpan<block>(); //s
 
@@ -553,9 +558,18 @@ namespace osuCrypto
 
 						u64 hashIdx = simple.mBins[bIdx].hashIdxs[idx];
 						
+						//memcpy((u8*)&globalHash[hashIdx][simple.mBins[bIdx].Idxs[idx]], (u8*)&cipher[0], sizeof(block));
+
 						//globalHash[hashIdx][idxPermuteDone[hashIdx]++] = cipher[0];
-						memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++] 
-							, (u8*)&cipher[0], sizeof(block));
+						if (isMultiThreaded)
+						{
+							std::lock_guard<std::mutex> lock(mtx);
+							memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++]
+								, (u8*)&cipher[0], sizeof(block));
+						}
+						else
+							memcpy(globalHash[hashIdx].data() + permute[hashIdx][idxPermuteDone[hashIdx]++]
+								, (u8*)&cipher[0], sizeof(block));
 
 					}
 
@@ -573,52 +587,6 @@ namespace osuCrypto
 
 				}
 
-#if 0
-
-				u64 degree = rowQ.size() - 1;
-				ZZ_p::init(ZZ(mPrime));
-				ZZ zz;
-				ZZ_p* zzX = new ZZ_p[subIdxItems.size()];
-				ZZ_p* zzY = new ZZ_p[rowQ.size()];
-				ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
-				block rcvBlk;
-				ZZ_pX recvPoly;
-				ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
-
-
-
-				for (u64 idx = 0; idx < subIdxItems.size(); ++idx)
-				{
-					ZZFromBytes(zz, (u8*)&inputs[subIdxItems[idx]], sizeof(block));
-					zzX[idx] = to_ZZ_p(zz);
-				}
-
-				build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
-
-
-				for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-				{
-					for (int c = 0; c<degree; c++) {
-						memcpy((u8*)&rcvBlk, recvBuff.data() + (k*j*rowQ.size() + c) * sizeof(block), sizeof(block));
-						ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
-						SetCoeff(recvPoly, c, to_ZZ_p(zz));
-					}
-
-					evaluate(recvPoly, p_tree, reminders, degree * 2 + 1, zzY, 1, mPrime);
-
-					for (int idx = 0; idx < rowQ.size(); idx++) {
-						BytesFromZZ((u8*)&rcvBlk, rep(zzY[idx]), sizeof(block));
-						rcvBlk = rowQ[idx][j] ^ (rcvBlk&choiceBlocks[j]); //Q+s*P
-
-						localHashes[idx] = simple.mAesHasher.ecbEncBlock(rcvBlk) ^ localHashes[idx]; //compute H(Q+s*P)=xor of all slices
-					}
-
-				}
-
-				for (int idx = 0; idx < localHashes.size(); idx++) {
-					memcpy(sendBuff.data() + (k*simple.mMaxBinSize + idx)*hashMaskBytes, (u8*)&localHashes[idx], hashMaskBytes);
-				}
-#endif
 			}
 		};
 
@@ -658,79 +626,105 @@ namespace osuCrypto
 #endif // PSI_PRINT
 
 
-		//=====================Sort=====================
+		//=====================Sort & sending masks=====================
 		
-		auto ss = [](const block& lhs, const block& rhs) -> bool {
-			return memcmp(&lhs, &rhs, sizeof(block)) < 0;		
+
+		auto compareBlockFunction = [](const block& lhs, const block& rhs) -> bool {
+			return memcmp(&lhs, &rhs, sizeof(block)) < 0;
 		};
 
-
-		globalHash[0][0] = ZeroBlock;
-		globalHash[0][1] = ZeroBlock;
-
-		std::sort(globalHash[1].begin(), globalHash[1].end(), ss);
-		std::sort(globalHash[0].begin(), globalHash[0].end(), ss);
-
-		gTimer.setTimePoint("s_sort");
-
-		std::cout << "globalHash " << globalHash[0][0] << "\n";
-		std::cout << "globalHash " << globalHash[0][1] << "\n";
-		std::cout << "globalHash " << globalHash[0][2] << "\n";
-		std::cout << "globalHash " << globalHash[0][3] << "\n";
-
-
-
-		auto sendingMask = [&](u64 t)
-		{
-			auto& chl = chls[t]; //parallel along with inputs
-			u64 startIdx = inputs.size() * t / numThreads;
-			u64 tempEndIdx = (inputs.size() * (t + 1) / numThreads);
-			u64 endIdx = std::min(tempEndIdx, (u64)inputs.size());
-
-
-			for (u64 i = startIdx; i < endIdx; i += stepSizeMaskSent)
+		
+			auto sendingMasks = [&](u64 hIdx, Channel chl)
 			{
-				auto curStepSize = std::min(stepSizeMaskSent, endIdx - i);
+				
 
-				for (u64 hIdx = 0; hIdx < 2; hIdx++)
+				//std::cout << globalHash[hIdx].size() << " globalHash.size()\n";
+
+				std::sort(globalHash[hIdx].begin(), globalHash[hIdx].end(), compareBlockFunction);
+
+				gTimer.setTimePoint("s_sort");
+
+				std::vector<u8> sendBuff(1.02*inputs.size()*(hashMaskBytes));
+
+
+				//block 
+				block boundMaskDiff = ZeroBlock;
+				for (u64 i = 0; i < hashMaskBytes * 8; i++)
+					boundMaskDiff = boundMaskDiff^mOneBlocks[i];
+
+				//std::cout << boundMaskDiff << "  boundMaskDiff\n";
+
+
+
+				u64 iterSendDiff = 0;
+
+				memcpy(sendBuff.data(), (u8*)&globalHash[hIdx][0], n1n2MaskBytes);
+				iterSendDiff += n1n2MaskBytes;
+
+
+				/*block aaa = ZeroBlock;
+				memcpy((u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
+				std::cout << aaa << " sendBuff[0] \t" << globalHash[hIdx][0] << "\n";*/
+
+
+				block diff;
+				for (u64 idx = 0; idx < inputs.size() - 1; idx++)
 				{
-					std::vector<u8> sendBuff(curStepSize*hashMaskBytes);
+					diff = globalHash[hIdx][idx + 1] - globalHash[hIdx][idx];
 
-					memcpy(sendBuff.data(), (u8*)&globalHash[hIdx][startIdx], hashMaskBytes);
-
-					block diff;
-					for (u64 idx = 1; idx < curStepSize; idx++)
+					if (memcmp(&diff, &boundMaskDiff, hashMaskBytes) < 0)
 					{
-						diff = globalHash[hIdx][idx]^globalHash[hIdx][idx - 1];
-						memcpy(sendBuff.data()+idx*hashMaskBytes, (u8*)&diff, hashMaskBytes);
-
+						//std::cout << diff << "  " << idx << "\t ==diff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
+						memcpy(sendBuff.data() + iterSendDiff, (u8*)&diff, hashMaskBytes);
+						iterSendDiff += hashMaskBytes;
 					}
-					chl.asyncSend(std::move(sendBuff));
-
-#ifdef PSI_PRINT
-					for (u64 k = 0; k < curStepSize; ++k)
+					else
 					{
-						block globalTest;
-						memcpy((u8*)&globalTest, sendBuff[hIdx].data() + k* hashMaskBytes, hashMaskBytes);
-						std::cout << IoStream::lock;
-						std::cout << "sendBuffs " << hIdx << " " << k << "\t" << globalTest << "\n";
-						std::cout << IoStream::unlock;
+						//std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[hIdx][idx + 1] << "\t" << globalHash[hIdx][idx] << "\n";
+
+						memcpy(sendBuff.data() + iterSendDiff, (u8*)&ZeroBlock, hashMaskBytes);
+						iterSendDiff += hashMaskBytes;
+
+						memcpy(sendBuff.data() + iterSendDiff, (u8*)& globalHash[hIdx][idx + 1], n1n2MaskBytes);
+						iterSendDiff += n1n2MaskBytes;
 					}
-#endif // PSI_PRINT
+					if (iterSendDiff > sendBuff.size())
+					{
+						std::cout << "iterSendDiff > sendBuff.size(): " << iterSendDiff << "\t" << sendBuff.size() << "\n";
+						sendBuff.resize(sendBuff.size() + (inputs.size() - iterSendDiff)*hashMaskBytes);
+					}
+
+					/*std::cout << IoStream::lock;
+					std::cout << "s mask: " << idx << "  " << globalHash[hIdx][idx + 1] << " - " << globalHash[hIdx][idx] << " ===diff:===" << diff << "\n";
+					std::cout << IoStream::unlock;*/
+
+				}
+				//memcpy(sendBuff.data() + iterSendDiff, (u8*)& ZeroBlock, sendBuff.size()- iterSendDiff);
+
+
+
+
+				chl.asyncSend(std::move(sendBuff));
+			};
+
+			if (isMultiThreaded)
+			{
+				for (u64 i = 0; i < 2; ++i)
+				{
+					thrds[i] = std::thread([=] {
+						sendingMasks(i, chls[i]);
+					});
 				}
 
+				for (u64 i = 0; i < 2; ++i)
+					thrds[i].join();
 			}
-		};
+			else
+			{
+				sendingMasks(0, chls[0]);
+				sendingMasks(1, chls[0]);
 
-		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		{
-			thrds[i] = std::thread([=] {
-				sendingMask(i);
-			});
-		}
-
-		for (auto& thrd : thrds)
-			thrd.join();
+			}
 
 
 #endif
@@ -863,17 +857,19 @@ namespace osuCrypto
 
 				evaluate(recvPolynomials[idxBlk], p_tree, reminders, degree * 2 + 1, zzY1[idxBlk], numThreads, mPrime);
 
-				block rcvRowR;
+				/*block rcvRowR;
 				BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][0]), sizeof(block));
-				std::cout << "s rcvRowR: " << rcvRowR << std::endl;
+				std::cout << "s rcvRowR: " << rcvRowR << std::endl;*/
 
 			}
 		}
 
 
 		{ //last slices
-			mPrime = to_ZZ("1461501637330902918203684832716283019655932542983");  //nextprime(2^160)
-			ZZ_p::init(ZZ(mPrime));
+
+			mPrimeLastSlice = getPrimeLastSlice(mFieldSize);
+
+			ZZ_p::init(ZZ(mPrimeLastSlice));
 
 			ZZ_p* zzX = new ZZ_p[inputs.size()];
 			ZZ zz;
@@ -888,7 +884,7 @@ namespace osuCrypto
 			ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
 
 
-			build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+			build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrimeLastSlice);
 
 			std::array<block, 2> rcvBlk;
 
@@ -907,11 +903,11 @@ namespace osuCrypto
 				}
 
 
-				evaluate(recvPolynomial, p_tree, reminders, degree * 2 + 1, zzY1[first2Slices], 1, mPrime);
+				evaluate(recvPolynomial, p_tree, reminders, degree * 2 + 1, zzY1[first2Slices], 1, mPrimeLastSlice);
 
-				BytesFromZZ((u8*)&rcvBlk, rep(zzY1[first2Slices][0]), lastPolyMaskBytes);
+				/*BytesFromZZ((u8*)&rcvBlk, rep(zzY1[first2Slices][0]), lastPolyMaskBytes);
 				std::cout << "s rcvRowR: " << rcvBlk[0] << std::endl;
-				std::cout << "s rcvRowR: " << rcvBlk[1] << std::endl;
+				std::cout << "s rcvRowR: " << rcvBlk[1] << std::endl;*/
 
 		}
 
@@ -935,8 +931,8 @@ namespace osuCrypto
 						BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][idxItem]), sizeof(block));
 						recvRowT[idxBlk] = subRowQ[t][idx][idxBlk] ^ (rcvRowR & choiceBlocks[idxBlk]); //Q+s*P
 
-						if (idxItem == 0)
-							std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;
+						/*if (idxItem == 0)
+							std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;*/
 					}
 					else
 					{
@@ -950,11 +946,11 @@ namespace osuCrypto
 
 						recvRowT[idxBlk+1] = recvRowT[idxBlk+1] & mTruncateBlk;
 
-						if (idxItem == 0)
+						/*if (idxItem == 0)
 						{
 							std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;
 							std::cout << "s recvRowT: " << recvRowT[idxBlk+1] << std::endl;
-						}
+						}*/
 					}
 					
 				}
@@ -964,9 +960,9 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
-				if (idxItem == 0)
+				/*if (idxItem == 0)
 					std::cout << cipher[0] << " " << idxItem << " == S cipher[0]\n";
-
+*/
 
 				memcpy(globalHash.data() + idxItem, (u8*)&cipher[0], sizeof(block));
 			}
@@ -990,13 +986,13 @@ namespace osuCrypto
 
 
 
-		std::cout << globalHash.size() << " globalHash.size()\n";
+		//std::cout << globalHash.size() << " globalHash.size()\n";
 
-		auto ss = [](const block& lhs, const block& rhs) -> bool {
+		auto compareBlockFunction = [](const block& lhs, const block& rhs) -> bool {
 			return memcmp(&lhs, &rhs, sizeof(block)) < 0;
 		};
 
-		std::sort(globalHash.begin(), globalHash.end(), ss);
+		std::sort(globalHash.begin(), globalHash.end(), compareBlockFunction);
 
 		gTimer.setTimePoint("s_sort");
 
@@ -1008,7 +1004,7 @@ namespace osuCrypto
 		for (u64 i = 0; i < hashMaskBytes*8; i++)
 			boundMaskDiff = boundMaskDiff^mOneBlocks[i];
 
-		std::cout << boundMaskDiff << "  boundMaskDiff\n";
+		//std::cout << boundMaskDiff << "  boundMaskDiff\n";
 
 
 		
@@ -1018,9 +1014,9 @@ namespace osuCrypto
 		iterSendDiff += n1n2MaskBytes;
 
 
-		block aaa = ZeroBlock;
+		/*block aaa = ZeroBlock;
 		memcpy((u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
-		std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";
+		std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";*/
 
 
 		block diff;
@@ -1036,7 +1032,7 @@ namespace osuCrypto
 			}
 			else
 			{
-				std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
+				//std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
 
 				memcpy(sendBuff.data() + iterSendDiff, (u8*)&ZeroBlock, hashMaskBytes);
 				iterSendDiff += hashMaskBytes;

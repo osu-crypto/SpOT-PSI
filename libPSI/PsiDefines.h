@@ -29,13 +29,18 @@ namespace osuCrypto
 
 	static const u64 bIdxForDebug(3), iIdxForDebug(0), hIdxForDebug(0);
 
-	
+	static const ZZ mPrime128 = to_ZZ("340282366920938463463374607431768211507");
+	static const ZZ mPrime160 = to_ZZ("1461501637330902918203684832716283019655932542983");  //nextprime(2^160)
+	static const ZZ mPrime164 = to_ZZ("23384026197294446691258957323460528314494920687733");  //nextprime(2^164)
+	static const ZZ mPrime168 = to_ZZ("374144419156711147060143317175368453031918731001943");  //nextprime(2^168)
+	static const ZZ mPrime172 = to_ZZ("5986310706507378352962293074805895248510699696029801");  //nextprime(2^172)
+	static const ZZ mPrime176 = to_ZZ("95780971304118053647396689196894323976171195136475563");  //nextprime(2^176)
+	static const ZZ mPrime180 = to_ZZ("1532495540865888858358347027150309183618739122183602191");  //nextprime(2^180)
+	static const ZZ mPrime184 = to_ZZ("24519928653854221733733552434404946937899825954937634843");  //nextprime(2^184)
+	static const ZZ mPrime188 = to_ZZ("392318858461667547739736838950479151006397215279002157113");  //nextprime(2^188)
 
 	inline u64 getFieldSizeInBits(u64 setSize)
 	{
-
-		return 416;
-
 
 		if (setSize <= (1 << 10))
 			return 416;
@@ -49,9 +54,39 @@ namespace osuCrypto
 			return 432;
 		else if (setSize <= (1 << 20))
 			return 436;
+		else if (setSize <= (1 << 22))
+			return 436;
+		else if (setSize <= (1 << 24))
+			return 444;
 
-		return 436;
+		return 444;
 	}
+
+
+	inline ZZ getPrimeLastSlice(u64 fieldSize)
+	{
+		u64 lastBit = fieldSize - 2 * 128;
+		if (lastBit==160)
+			return mPrime160;
+		else if (lastBit == 164)
+			return mPrime164;
+		else if (lastBit == 168)
+			return mPrime168;
+		else if (lastBit == 172)
+			return mPrime172;
+		else if (lastBit == 176)
+			return mPrime176;
+		else if (lastBit == 180)
+			return mPrime180;
+		else if (lastBit == 184)
+			return mPrime184;
+		else if (lastBit == 188)
+			return mPrime188;
+		
+		return mPrime188;
+	}
+
+
 	
 	struct item
 	{

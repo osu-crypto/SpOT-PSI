@@ -782,7 +782,7 @@ namespace tests_libOTe
 	void Prty_PSI_impl()
 	{
 		setThreadName("Sender");
-		u64 setSenderSize = 1 << 10, setRecvSize = 1 << 8, psiSecParam = 40, numThreads(2);
+		u64 setSenderSize = 1 << 10, setRecvSize = 1 << 8, psiSecParam = 40, numThreads(4);
 
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 		PRNG prng1(_mm_set_epi32(4253465, 3434565, 234435, 23987025));
@@ -832,7 +832,7 @@ namespace tests_libOTe
 
 		auto thrd = std::thread([&]() {
 			recv.init(recvSet.size(), sendSet.size(), 40, prng1, recvChls);
-			recv.outputBigPoly(recvSet, recvChls);
+			recv.outputBestComm(recvSet, recvChls);
 
 			/*prfOtRows(X, rowT, recv.mAesT);
 			prfOtRows(X, rowU, recv.mAesU);*/
@@ -846,7 +846,8 @@ namespace tests_libOTe
 		});
 
 		sender.init(sendSet.size(), recvSet.size(), 40, prng0, sendChls);
-		sender.outputBigPoly(sendSet, sendChls);
+		//sender.outputBigPoly(sendSet, sendChls);
+		sender.outputBestComm(sendSet, sendChls);
 		//prfOtRows(X, rowQ, sender.mAesQ);
 
 		/*for (u64 i = 0; i < binSize; ++i)

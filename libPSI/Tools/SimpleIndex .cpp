@@ -60,6 +60,9 @@ namespace osuCrypto
 			mBins[b1].hashIdxs.push_back(0);
 			mBins[b2].hashIdxs.push_back(1);
 
+			/*mBins[b1].Idxs.push_back(idxItem);
+			mBins[b2].Idxs.push_back(idxItem);
+*/
 				
 		}
 	}

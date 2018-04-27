@@ -34,8 +34,8 @@ namespace osuCrypto {
 		
 		u64 mFieldSize;
 		ZZ mPrime;
-		ZZ mPrime128 = to_ZZ("340282366920938463463374607431768211507");
-		ZZ mPrime52 = to_ZZ("4503599627370517");
+		ZZ mPrimeLastSlice;
+
 
 
 		block mTruncateBlk;

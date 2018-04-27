@@ -37,9 +37,7 @@ namespace osuCrypto
 
 		PRNG mPrng;
 		ZZ mPrime;
-
-		ZZ mPrime128 = to_ZZ("340282366920938463463374607431768211507");
-		ZZ mPrime52 = to_ZZ("4503599627370517");
+		ZZ mPrimeLastSlice;
 
 		////std::vector<std::array<block, 2>> mOtKeys;
 		std::vector<AES> mAesT;
