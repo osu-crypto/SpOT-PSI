@@ -264,9 +264,10 @@ namespace tests_libOTe
 	void Poly_Test_Impl() {
 
 		PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
+	//	u64 lastPolyMaskBytes = 20;
 
 
-		std::vector<block> inputs(1024);
+		std::vector<block> inputs(256);
 		std::vector<std::array<block, numSuperBlocks>> rowR(inputs.size());
 
 		for (u64 i = 0; i < inputs.size(); ++i)
@@ -276,9 +277,44 @@ namespace tests_libOTe
 				rowR[i][j] = prng0.get<block>();
 		}
 
-		u64 lastPolyMaskBytes = sizeof(block);
+		//ZZ mPrime = to_ZZ("1461501637330902918203684832716283019655932542983");  //nextprime(2^160)
+		//GenGermainPrime(mPrime, 129);
+		//ZZ_p::init(ZZ(mPrime));
+
+		//u64 degree = inputs.size() - 1;
+		//ZZ_p* zzX = new ZZ_p[inputs.size()];
+		//ZZ_p* zzY = new ZZ_p[inputs.size()];
+
+		//ZZ zz;
+		//ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
+		//ZZ_p *a = new ZZ_p[degree + 1];;
+		//ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
+		//ZZ_pX Polynomial;
+		//std::vector<u8> sendBuff;
+
+
+		//for (u64 idx = 0; idx < inputs.size(); idx++)
+		//{
+		//	std::vector<u8> temp(lastPolyMaskBytes, 0);
+		//	memcpy((u8*)&temp, (u8*)&inputs[idx], sizeof(block));
+
+		//	ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
+		//	std::cout << zz << "\n";
+		//	zzX[idx] = to_ZZ_p(zz);
+		//}
+
+		//for (u64 idx = 0; idx < inputs.size(); idx++)
+		//{
+		//	ZZFromBytes(zz, (u8*)&rowR[idx][first2Slices], lastPolyMaskBytes);
+		//	zzY[idx] = to_ZZ_p(zz);
+		//}
+
+
+
+		u64 lastPolyMaskBytes = 20;
 		u64 numThreads = 1;
-		ZZ mPrime = to_ZZ("340282366920938463463374607431768211507");
+		//ZZ mPrime = to_ZZ("340282366920938463463374607431768211507");
+		ZZ mPrime = to_ZZ("1461501637330902918203684832716283019655932542983");
 
 		ZZ_p::init(ZZ(mPrime));
 
@@ -301,36 +337,44 @@ namespace tests_libOTe
 		{
 			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
 			zzX[idx] = to_ZZ_p(zz);
+		//	std::cout << zzX[idx] << "\n";
 		}
 
 		for (u64 idx = 0; idx < inputs.size(); idx++)
 		{
-			ZZFromBytes(zz, (u8*)&rowR[idx][0], sizeof(block));
+			ZZFromBytes(zz, (u8*)&rowR[idx][2], lastPolyMaskBytes);
 			zzY[idx] = to_ZZ_p(zz);
 
 			block rcvRowR2;
 			BytesFromZZ((u8*)&rcvRowR2, rep(zzY[idx]), sizeof(block));
 
-			if(neq(rowR[idx][0], rcvRowR2))
-				std::cout << "idx: " <<idx <<"  ==  " << rowR[idx][0] << "\t ===BytesFromZZ wrong!=== \t " << rcvRowR2 << std::endl;
+			if(memcmp((u8*)&rowR[idx][2], (u8*)&rcvRowR2,sizeof(block)==0))
+				std::cout << "idx: " <<idx <<"  ==  " << rowR[idx][2] << "\t ===BytesFromZZ wrong!=== \t " << rcvRowR2 << std::endl;
+
+			BytesFromZZ((u8*)&rcvRowR2, rep(zzY[idx])+sizeof(block), lastPolyMaskBytes-sizeof(block));
+
+			if (memcmp((u8*)&rowR[idx][3], (u8*)&rcvRowR2, lastPolyMaskBytes - sizeof(block) == 0))
+				std::cout << "idx: " << idx << "  ==  " << rowR[idx][3] << "\t ===BytesFromZZ wrong!=== \t " << rcvRowR2 << std::endl;
+
 
 		}
 
+
 		prepareForInterpolate(zzX, degree, M, a, numThreads, mPrime);
 		iterative_interpolate_zp(Polynomials, temp, zzY, a, M, degree * 2 + 1, numThreads, mPrime);
-
+#if 1
 		u64 iterSends = 0;
-		sendBuffs.resize(inputs.size() * sizeof(block));
+		sendBuffs.resize(inputs.size() * lastPolyMaskBytes);
 
-		std::vector<block> coeff(degree+1);// = new u8[sizeof(block) + 1];
+		std::vector<std::array<block,2>> coeff(degree+1);// = new u8[sizeof(block) + 1];
 
 
 		for (int c = 0; c <= degree; c++) {
 			//std::vector<u8> coeff(sizeof(block));
 
 
-			BytesFromZZ((u8*)&coeff[c], rep(Polynomials.rep[c]), sizeof(block));
-			ZZFromBytes(zz, (u8*)&coeff[c], sizeof(block));
+			BytesFromZZ((u8*)&coeff[c], rep(Polynomials.rep[c]), lastPolyMaskBytes);
+			ZZFromBytes(zz, (u8*)&coeff[c], lastPolyMaskBytes);
 
 
 			if (to_ZZ_p(zz) != Polynomials.rep[c])
@@ -344,8 +388,8 @@ namespace tests_libOTe
 
 
 
-			memcpy(sendBuffs.data() + iterSends, (u8*)&coeff[c], sizeof(block));
-			iterSends += sizeof(block);
+			memcpy(sendBuffs.data() + iterSends, (u8*)&coeff[c], lastPolyMaskBytes);
+			iterSends += lastPolyMaskBytes;
 		}
 
 
@@ -357,45 +401,45 @@ namespace tests_libOTe
 
 		build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
 		u64 iterRecvs = 0;
-		block rcvBlk;
+		std::array<block,2> rcvBlk;
 
 		ZZ_pX recvPolynomials;
 
 
 		for (int c = 0; c <= degree; c++) {
-			memcpy((u8*)&rcvBlk, sendBuffs.data() + iterRecvs, sizeof(block));
-			iterRecvs += sizeof(block);
+			memcpy((u8*)&rcvBlk, sendBuffs.data() + iterRecvs, lastPolyMaskBytes);
+			iterRecvs += lastPolyMaskBytes;
 
-			ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
+			ZZFromBytes(zz, (u8*)&rcvBlk, lastPolyMaskBytes);
 			//SetCoeff(recvPolynomials, c, Polynomials.rep[c]);
 			SetCoeff(recvPolynomials, c, to_ZZ_p(zz));
 		}
 
 
 
-		for (int c = 0; c <= degree; c++)
-		{
-			block coeff;
-			ZZ_p zp;
-			GetCoeff(zp, Polynomials, c);
-			BytesFromZZ((u8*)&coeff, rep(zp), sizeof(block));
+		//for (int c = 0; c <= degree; c++)
+		//{
+		//	block coeff;
+		//	ZZ_p zp;
+		//	GetCoeff(zp, Polynomials, c);
+		//	BytesFromZZ((u8*)&coeff, rep(zp), sizeof(block));
 
 
-			block coeff1;
-			ZZ_p zp1;
+		//	block coeff1;
+		//	ZZ_p zp1;
 
 
-			GetCoeff(zp1, recvPolynomials, c);
-			BytesFromZZ((u8*)&coeff1, rep(zp1), sizeof(block));
+		//	GetCoeff(zp1, recvPolynomials, c);
+		//	BytesFromZZ((u8*)&coeff1, rep(zp1), sizeof(block));
 
-			if (neq(coeff1, coeff))
-				std::cout << coeff1 << "\t ===coeff=== \t " << coeff << std::endl;
+		//	if (neq(coeff1, coeff))
+		//		std::cout << coeff1 << "\t ===coeff=== \t " << coeff << std::endl;
 
 
-			if (rep(zp1) != rep(zp))
-				std::cout << zp1 << "\t ===coeff=== \t " << zp << std::endl;
+		//	if (rep(zp1) != rep(zp))
+		//		std::cout << zp1 << "\t ===coeff=== \t " << zp << std::endl;
 
-		}
+		//}
 
 		if (recvPolynomials != Polynomials)
 		{
@@ -413,20 +457,25 @@ namespace tests_libOTe
 			if (zzY1[i] != zzY[i])
 				std::cout << "zzY: " << i << "," << zzY1[i] << "\t" << zzY[i] << std::endl;
 
-			block rcvRowR;
-			BytesFromZZ((u8*)&rcvRowR, rep(zzY1[i]), sizeof(block));
+			std::array<block, 2> rcvRowR;
+			BytesFromZZ((u8*)&rcvRowR, rep(zzY1[i]), lastPolyMaskBytes);
 
 		/*	block rcvRowR2;
 			BytesFromZZ((u8*)&rcvRowR2, rep(zzY[i]), sizeof(block));*/
 
+			std::cout << "Unrecovered Y_: " << i << "," << rcvRowR[0] << "\t" << rowR[i][2] << std::endl;
+			std::cout << "Unrecovered Y_: " << i << "," << rcvRowR[1] << "\t" << rowR[i][3] << std::endl;
 
-				if (neq(rcvRowR, rowR[i][0]))
-				std::cout << "Unrecovered Y_: " << i << "," << rcvRowR << "\t" << rowR[i][0] << std::endl;
+				if (neq(rcvRowR[0], rowR[i][2]))
+				std::cout << "Unrecovered Y_: " << i << "," << rcvRowR[0] << "\t" << rowR[i][2] << std::endl;
+
+				if (memcmp((u8*)&rowR[i][3], (u8*)&rcvRowR[1], lastPolyMaskBytes - sizeof(block) == 0))
+					std::cout << "Unrecovered Y_: " << i << "," << rcvRowR[1] << "\t" << rowR[i][3] << std::endl;
 
 		
 
 		}
-
+#endif
 #if 0
 		{
 			PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));

@@ -20,6 +20,7 @@ namespace osuCrypto
 	static const u64 stepSize(1 << 8);
 	static const u64 stepSizeMaskSent(1<<11);
 	static const u8 numSuperBlocks(4); //wide of T (or field size)
+	static const u8 first2Slices(2); //2*128 + (436-2*128)
 	static const u64 recvNumDummies(1);
 	static const u64 recvMaxBinSize(40);
 	static std::vector<block> mOneBlocks(128); 
@@ -33,7 +34,7 @@ namespace osuCrypto
 	inline u64 getFieldSizeInBits(u64 setSize)
 	{
 
-		return 512;
+		return 416;
 
 
 		if (setSize <= (1 << 10))

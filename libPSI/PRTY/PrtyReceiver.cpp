@@ -141,7 +141,7 @@ namespace osuCrypto
 					}
 
 				}
-				std::cout << sendBuff.size() <<"  sendBuff.size()\n";
+				std::cout << sendBuff.size() << "  sendBuff.size()\n";
 
 				chl.asyncSend(std::move(sendBuff)); //send poly
 
@@ -646,8 +646,8 @@ namespace osuCrypto
 		const bool isMultiThreaded = numThreads > 1;
 		std::mutex mtx;
 		u64 polyMaskBytes = (mFieldSize + 7) / 8;
-		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
-		u64 hashMaskBytes = (40 + log2(mMyInputSize) + 2+7) / 8;
+		u64 lastPolyMaskBytes = polyMaskBytes - first2Slices * sizeof(block);
+		u64 hashMaskBytes = (40 + log2(mMyInputSize) + 2 + 7) / 8;
 
 		u64 n1n2MaskBits = (40 + log2(mTheirInputSize*mMyInputSize));
 		u64 n1n2MaskBytes = (n1n2MaskBits + 7) / 8;
@@ -710,8 +710,8 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
-				if(startIdx + i==0)
-					std::cout << cipher[0] << " " << startIdx+i << " == R cipher[0]\n";
+				if (startIdx + i == 0)
+					std::cout << cipher[0] << " " << startIdx + i << " == R cipher[0]\n";
 
 
 				if (isMultiThreaded)
@@ -745,57 +745,106 @@ namespace osuCrypto
 
 		//=====================Poly=====================
 
+		{ //fist 2 slices
 
-		mPrime = mPrime128;
-		ZZ_p::init(ZZ(mPrime));
+			mPrime = mPrime128;
+			ZZ_p::init(ZZ(mPrime));
 
-		u64 degree = inputs.size() - 1;
-		ZZ_p* zzX = new ZZ_p[inputs.size()];
-		std::array<ZZ_p*, numSuperBlocks> zzY;
-		for (u64 i = 0; i < numSuperBlocks; i++)
-			zzY[i] = new ZZ_p[inputs.size()];
+			u64 degree = inputs.size() - 1;
+			ZZ_p* zzX = new ZZ_p[inputs.size()];
+			std::array<ZZ_p*, first2Slices> zzY;
+			for (u64 i = 0; i < first2Slices; i++)
+				zzY[i] = new ZZ_p[inputs.size()];
 
-		ZZ zz;
-		ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
-		ZZ_p *a = new ZZ_p[degree + 1];;
-		ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
-		std::array<ZZ_pX, numSuperBlocks> Polynomials;
-		std::array<std::vector<u8>, numSuperBlocks> sendBuffs;
+			ZZ zz;
+			ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
+			ZZ_p *a = new ZZ_p[degree + 1];;
+			ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
+			std::array<ZZ_pX, first2Slices> Polynomials;
+			std::array<std::vector<u8>, first2Slices> sendBuffs;
 
-		u64 maskLength;
 
-		for (u64 idx = 0; idx < inputs.size(); idx++)
-		{
-			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
-			zzX[idx] = to_ZZ_p(zz);
-		}
-
-		for (u64 idx = 0; idx < inputs.size(); idx++)
-		{
-			for (u64 idxBlk = 0; idxBlk < numSuperBlocks; idxBlk++)
+			for (u64 idx = 0; idx < inputs.size(); idx++)
 			{
-				maskLength = (idxBlk == numSuperBlocks - 1) ? lastPolyMaskBytes : sizeof(block);
-				ZZFromBytes(zz, (u8*)&rowR[idx][idxBlk], maskLength);
-				zzY[idxBlk][idx] = to_ZZ_p(zz);
+				ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
+				zzX[idx] = to_ZZ_p(zz);
+			}
+
+			for (u64 idx = 0; idx < inputs.size(); idx++)
+			{
+				for (u64 idxBlk = 0; idxBlk < first2Slices; idxBlk++)
+				{
+					ZZFromBytes(zz, (u8*)&rowR[idx][idxBlk], sizeof(block));
+					zzY[idxBlk][idx] = to_ZZ_p(zz);
+				}
+			}
+
+
+			prepareForInterpolate(zzX, degree, M, a, numThreads, mPrime);
+
+			for (u64 idxBlk = 0; idxBlk < first2Slices; idxBlk++)
+			{
+
+				iterative_interpolate_zp(Polynomials[idxBlk], temp, zzY[idxBlk], a, M, degree * 2 + 1, numThreads, mPrime);
+
+				u64 iterSends = 0;
+				sendBuffs[idxBlk].resize(inputs.size() * sizeof(block));
+				for (int c = 0; c <= degree; c++) {
+					BytesFromZZ(sendBuffs[idxBlk].data() + iterSends, rep(Polynomials[idxBlk].rep[c]), sizeof(block));
+					iterSends += sizeof(block);
+				}
+
+				chls[0].asyncSend(std::move(sendBuffs[idxBlk]));
+
 			}
 		}
 
+		{ //last slice
+			mPrime = to_ZZ("1461501637330902918203684832716283019655932542983");  //nextprime(2^160)
 
-		prepareForInterpolate(zzX, degree, M, a, numThreads, mPrime);
+			ZZ_p::init(ZZ(mPrime));
 
-		for (u64 idxBlk = 0; idxBlk < numSuperBlocks; idxBlk++)
-		{
-			maskLength = (idxBlk == numSuperBlocks - 1) ? lastPolyMaskBytes : sizeof(block);
+			u64 degree = inputs.size() - 1;
+			ZZ_p* zzX = new ZZ_p[inputs.size()];
+			ZZ_p* zzY = new ZZ_p[inputs.size()];
 
-			iterative_interpolate_zp(Polynomials[idxBlk], temp, zzY[idxBlk], a, M, degree * 2 + 1, numThreads, mPrime);
+			ZZ zz;
+			ZZ_pX *M = new ZZ_pX[degree * 2 + 1];;
+			ZZ_p *a = new ZZ_p[degree + 1];;
+			ZZ_pX* temp = new ZZ_pX[degree * 2 + 1];
+			ZZ_pX Polynomial;
+			std::vector<u8> sendBuff;
+
+
+			for (u64 idx = 0; idx < inputs.size(); idx++)
+			{
+				ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
+				zzX[idx] = to_ZZ_p(zz);
+			}
+
+			for (u64 idx = 0; idx < inputs.size(); idx++)
+			{
+				ZZFromBytes(zz, (u8*)&rowR[idx][first2Slices], lastPolyMaskBytes);
+				zzY[idx] = to_ZZ_p(zz);
+			}
+
+
+			prepareForInterpolate(zzX, degree, M, a, numThreads, mPrime);
+
+			iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, numThreads, mPrime);
 
 			u64 iterSends = 0;
-			sendBuffs[idxBlk].resize(inputs.size() * maskLength);
+			sendBuff.resize(inputs.size() * lastPolyMaskBytes);
 			for (int c = 0; c <= degree; c++) {
-				BytesFromZZ(sendBuffs[idxBlk].data() + iterSends, rep(Polynomials[idxBlk].rep[c]), maskLength);
-				iterSends += maskLength;
+				BytesFromZZ(sendBuff.data() + iterSends, rep(Polynomial.rep[c]), lastPolyMaskBytes);
+				iterSends += lastPolyMaskBytes;
 			}
+
+			chls[0].asyncSend(std::move(sendBuff));
+
 		}
+
+
 
 
 #if 0
@@ -861,13 +910,13 @@ namespace osuCrypto
 
 #endif
 
-		for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
-			chls[0].asyncSend(std::move(sendBuffs[j]));
+		//for (u64 j = 0; j < numSuperBlocks; ++j) //slicing
+		//	chls[0].asyncSend(std::move(sendBuffs[j]));
 
 
 		gTimer.setTimePoint("r_Poly");
 
-		std::cout << localMasks.size() <<" localMasks.size()\n";
+		std::cout << localMasks.size() << " localMasks.size()\n";
 
 		//#####################Receive Mask #####################
 
@@ -892,14 +941,14 @@ namespace osuCrypto
 		auto theirDiff = recvBuffs.data()+ n1n2MaskBytes;*/
 
 		bool isOverBound = true;
-		maskLength = hashMaskBytes;
+		u64 maskLength = hashMaskBytes;
 
 
 		u64 iterTheirMask = 0;
 		u64 iterTheirDiff = n1n2MaskBytes;
 		u64 iterX = 0;
 
-		while(iterTheirDiff<recvBuffs.size())
+		while (iterTheirDiff < recvBuffs.size())
 		{
 
 			auto match = localMasks.find(*(u32*)&theirMasks);
@@ -924,26 +973,26 @@ namespace osuCrypto
 
 				}
 			}
-			
+
 			if (memcmp((u8*)&theirDiff, &ZeroBlock, hashMaskBytes) == 0)
 			{
 				isOverBound = true;
 				iterTheirMask = iterTheirDiff + hashMaskBytes;
 				memcpy((u8*)&theirMasks, recvBuffs.data() + iterTheirMask, n1n2MaskBytes);
-				
+
 				iterTheirDiff = iterTheirMask + n1n2MaskBytes;
 				memcpy((u8*)&theirDiff, recvBuffs.data() + iterTheirDiff, n1n2MaskBytes);
 
 			}
 			else
 			{
-				block next=theirDiff + theirMasks;
+				block next = theirDiff + theirMasks;
 				//std::cout << "r mask: " << iterX << "  " << next << " - " << theirMasks << " ===diff:===" << theirDiff << "\n";
 
 				theirMasks = next;
 
 
-				if(isOverBound)
+				if (isOverBound)
 					iterTheirMask += n1n2MaskBytes;
 				else
 					iterTheirMask += hashMaskBytes;
@@ -954,7 +1003,7 @@ namespace osuCrypto
 			}
 			iterX++;
 		}
-			
+
 
 
 

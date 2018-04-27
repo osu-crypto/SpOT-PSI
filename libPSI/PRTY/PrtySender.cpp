@@ -747,7 +747,7 @@ namespace osuCrypto
 		u64 hashMaskBits = (40 + log2(mTheirInputSize) + 2 ) ;
 		u64 hashMaskBytes =  (hashMaskBits + 7) / 8;
 
-		u64 lastPolyMaskBytes = polyMaskBytes - (numSuperBlocks - 1) * sizeof(block);
+		u64 lastPolyMaskBytes = polyMaskBytes - first2Slices * sizeof(block);
 		u64 n1n2MaskBits = (40 + log2(mTheirInputSize*mMyInputSize));
 		u64 n1n2MaskBytes = (n1n2MaskBits+7)/8;
 
@@ -814,9 +814,9 @@ namespace osuCrypto
 
 		//=====================Poly=====================
 
-		std::array<std::vector<u8>, numSuperBlocks> recvBuffs;
+		std::array<std::vector<u8>, first2Slices+1> recvBuffs;
 
-		if (thrds.size() >= numSuperBlocks)
+		if (thrds.size() >= first2Slices + 1)
 		{
 			for (u64 t = 0; t < thrds.size(); ++t)
 			{
@@ -834,59 +834,100 @@ namespace osuCrypto
 			chls[0].recv(recvBuffs[0]);
 			chls[0].recv(recvBuffs[1]);
 			chls[0].recv(recvBuffs[2]);
-			chls[0].recv(recvBuffs[3]);
 		}
 
 		u64 degree = mTheirInputSize - 1;
-		mPrime = mPrime128;
-		ZZ_p::init(ZZ(mPrime));
-		
-		ZZ_p* zzX = new ZZ_p[inputs.size()];
-		ZZ zz;
-		u64 maskLength;
 
-
-		for (u64 idx = 0; idx < inputs.size(); idx++)
-		{
-			ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
-			zzX[idx] = to_ZZ_p(zz);
-		}
-
-
-		ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
-		ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
-
-		std::array<ZZ_p*, numSuperBlocks> zzY1;
-		for (u64 i = 0; i < numSuperBlocks; i++)
+		std::array<ZZ_p*, first2Slices + 1> zzY1;
+		for (u64 i = 0; i < first2Slices + 1; i++)
 			zzY1[i] = new ZZ_p[inputs.size()];
 
-		build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
-		block rcvBlk;
+		{ //first 2 128 slices
+			mPrime = mPrime128;
+			ZZ_p::init(ZZ(mPrime));
 
-		std::array<ZZ_pX, numSuperBlocks> recvPolynomials;
+			ZZ_p* zzX = new ZZ_p[inputs.size()];
+			ZZ zz;
 
-		for (u64 idxBlk = 0; idxBlk < numSuperBlocks; idxBlk++)
-		{
-			u64 iterRecvs = 0;
-			maskLength = (idxBlk == numSuperBlocks - 1) ? lastPolyMaskBytes : sizeof(block);
-
-			for (int c = 0; c <= degree; c++) {
-				memcpy((u8*)&rcvBlk, recvBuffs[idxBlk].data() + iterRecvs, maskLength);
-				iterRecvs += maskLength;
-
-				ZZFromBytes(zz, (u8*)&rcvBlk, maskLength);
-				SetCoeff(recvPolynomials[idxBlk], c, to_ZZ_p(zz));
+			for (u64 idx = 0; idx < inputs.size(); idx++)
+			{
+				ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
+				zzX[idx] = to_ZZ_p(zz);
 			}
 
+			ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+			ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+			
 
-			evaluate(recvPolynomials[idxBlk], p_tree, reminders, degree * 2 + 1, zzY1[idxBlk], numThreads, mPrime);
+			build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+			block rcvBlk;
 
-			block rcvRowR;
-			BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][0]), maskLength);
-			std::cout << "s rcvRowR: " << rcvRowR << std::endl;
+			std::array<ZZ_pX, first2Slices> recvPolynomials;
 
+			for (u64 idxBlk = 0; idxBlk < first2Slices; idxBlk++)
+			{
+				u64 iterRecvs = 0;
+
+				for (int c = 0; c <= degree; c++) {
+					memcpy((u8*)&rcvBlk, recvBuffs[idxBlk].data() + iterRecvs, sizeof(block));
+					iterRecvs += sizeof(block);
+
+					ZZFromBytes(zz, (u8*)&rcvBlk, sizeof(block));
+					SetCoeff(recvPolynomials[idxBlk], c, to_ZZ_p(zz));
+				}
+
+
+				evaluate(recvPolynomials[idxBlk], p_tree, reminders, degree * 2 + 1, zzY1[idxBlk], numThreads, mPrime);
+
+				block rcvRowR;
+				BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][0]), sizeof(block));
+				std::cout << "s rcvRowR: " << rcvRowR << std::endl;
+
+			}
 		}
 
+
+		{ //last slices
+			mPrime = to_ZZ("1461501637330902918203684832716283019655932542983");  //nextprime(2^160)
+			ZZ_p::init(ZZ(mPrime));
+
+			ZZ_p* zzX = new ZZ_p[inputs.size()];
+			ZZ zz;
+
+			for (u64 idx = 0; idx < inputs.size(); idx++)
+			{
+				ZZFromBytes(zz, (u8*)&inputs[idx], sizeof(block));
+				zzX[idx] = to_ZZ_p(zz);
+			}
+
+			ZZ_pX* p_tree = new ZZ_pX[degree * 2 + 1];
+			ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
+
+
+			build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+
+			std::array<block, 2> rcvBlk;
+
+			ZZ_pX recvPolynomial;
+
+				u64 iterRecvs = 0;
+
+				for (int c = 0; c <= degree; c++) {
+					memcpy((u8*)&rcvBlk, recvBuffs[first2Slices].data() + iterRecvs, lastPolyMaskBytes);
+					iterRecvs += lastPolyMaskBytes;
+
+					ZZFromBytes(zz, (u8*)&rcvBlk, lastPolyMaskBytes);
+					SetCoeff(recvPolynomial, c, to_ZZ_p(zz));
+				}
+
+
+				evaluate(recvPolynomial, p_tree, reminders, degree * 2 + 1, zzY1[first2Slices], numThreads, mPrime);
+
+				BytesFromZZ((u8*)&rcvBlk, rep(zzY1[first2Slices][0]), lastPolyMaskBytes);
+				std::cout << "s rcvRowR: " << rcvBlk[0] << std::endl;
+				std::cout << "s rcvRowR: " << rcvBlk[1] << std::endl;
+
+		}
 
 		auto computeGlobalHash = [&](u64 t)
 		{
@@ -900,20 +941,36 @@ namespace osuCrypto
 			{
 				u64 idxItem = startIdx + idx;
 
-				for (u64 idxBlk = 0; idxBlk < numSuperBlocks; ++idxBlk) //slicing
+				for (u64 idxBlk = 0; idxBlk < numSuperBlocks-1; ++idxBlk) //slicing
 				{
-					block rcvRowR;
-					maskLength = (idxBlk == numSuperBlocks - 1) ? lastPolyMaskBytes : sizeof(block);
-					BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][idxItem]), maskLength);
+					if (idxBlk != numSuperBlocks - 2)
+					{
+						block rcvRowR;
+						BytesFromZZ((u8*)&rcvRowR, rep(zzY1[idxBlk][idxItem]), sizeof(block));
+						recvRowT[idxBlk] = subRowQ[t][idx][idxBlk] ^ (rcvRowR & choiceBlocks[idxBlk]); //Q+s*P
 
-					recvRowT[idxBlk] = subRowQ[t][idx][idxBlk] ^ (rcvRowR & choiceBlocks[idxBlk]); //Q+s*P
+						if (idxItem == 0)
+							std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;
+					}
+					else
+					{
 
-					if (idxBlk == numSuperBlocks - 1) //get last 440-3*128 bits
-						recvRowT[idxBlk] = recvRowT[idxBlk] & mTruncateBlk;
+						std::array<block, 2> rcvLastRowRs; //128 + some last bits (436-3*128)
+						BytesFromZZ((u8*)&rcvLastRowRs, rep(zzY1[idxBlk][idxItem]), lastPolyMaskBytes);
 
-					if (idxItem == 0)
-						std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;
+						recvRowT[idxBlk] = subRowQ[t][idx][idxBlk] ^ (rcvLastRowRs[0] & choiceBlocks[idxBlk]); //Q+s*P
+						
+						recvRowT[idxBlk+1] = subRowQ[t][idx][idxBlk+1] ^ (rcvLastRowRs[1] & choiceBlocks[idxBlk+1]); //Q+s*P
 
+						recvRowT[idxBlk+1] = recvRowT[idxBlk+1] & mTruncateBlk;
+
+						if (idxItem == 0)
+						{
+							std::cout << "s recvRowT: " << recvRowT[idxBlk] << std::endl;
+							std::cout << "s recvRowT: " << recvRowT[idxBlk+1] << std::endl;
+						}
+					}
+					
 				}
 
 				simple.mAesHasher.ecbEncFourBlocks(recvRowT.data(), cipher.data());
@@ -921,8 +978,8 @@ namespace osuCrypto
 				for (u64 j = 1; j < numSuperBlocks; ++j)
 					cipher[0] = cipher[0] ^ cipher[j];
 
-				if(idxItem==0)
-					std::cout << cipher[0] << " " << idxItem <<" == S cipher[0]\n";
+				if (idxItem == 0)
+					std::cout << cipher[0] << " " << idxItem << " == S cipher[0]\n";
 
 
 				memcpy(globalHash.data() + idxItem, (u8*)&cipher[0], sizeof(block));
