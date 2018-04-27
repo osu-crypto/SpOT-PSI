@@ -829,7 +829,7 @@ namespace osuCrypto
 			}
 
 
-			prepareForInterpolate(zzX, degree, M, a, numThreads, mPrime);
+			prepareForInterpolate(zzX, degree, M, a, 1, mPrime);
 
 			iterative_interpolate_zp(Polynomial, temp, zzY, a, M, degree * 2 + 1, numThreads, mPrime);
 

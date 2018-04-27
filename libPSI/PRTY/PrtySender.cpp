@@ -815,26 +815,7 @@ namespace osuCrypto
 		//=====================Poly=====================
 
 		std::array<std::vector<u8>, first2Slices+1> recvBuffs;
-
-		if (thrds.size() >= first2Slices + 1)
-		{
-			for (u64 t = 0; t < thrds.size(); ++t)
-			{
-				thrds[t] = std::thread([=] {
-					auto& chl = chls[t];
-					chl.recv(recvBuffs[t]); //receive Poly
-				});
-			}
-
-			for (auto& thrd : thrds)
-				thrd.join();
-		}
-		else
-		{
-			chls[0].recv(recvBuffs[0]);
-			chls[0].recv(recvBuffs[1]);
-			chls[0].recv(recvBuffs[2]);
-		}
+		
 
 		u64 degree = mTheirInputSize - 1;
 
@@ -859,14 +840,17 @@ namespace osuCrypto
 			ZZ_pX* reminders = new ZZ_pX[degree * 2 + 1];
 			
 
-			build_tree(p_tree, zzX, degree * 2 + 1, 1, mPrime);
+			build_tree(p_tree, zzX, degree * 2 + 1, numThreads, mPrime);
 			block rcvBlk;
 
 			std::array<ZZ_pX, first2Slices> recvPolynomials;
 
+			
+
 			for (u64 idxBlk = 0; idxBlk < first2Slices; idxBlk++)
 			{
 				u64 iterRecvs = 0;
+				chls[0].recv(recvBuffs[idxBlk]);
 
 				for (int c = 0; c <= degree; c++) {
 					memcpy((u8*)&rcvBlk, recvBuffs[idxBlk].data() + iterRecvs, sizeof(block));
@@ -912,6 +896,8 @@ namespace osuCrypto
 
 				u64 iterRecvs = 0;
 
+				chls[0].recv(recvBuffs[2]);
+
 				for (int c = 0; c <= degree; c++) {
 					memcpy((u8*)&rcvBlk, recvBuffs[first2Slices].data() + iterRecvs, lastPolyMaskBytes);
 					iterRecvs += lastPolyMaskBytes;
@@ -921,7 +907,7 @@ namespace osuCrypto
 				}
 
 
-				evaluate(recvPolynomial, p_tree, reminders, degree * 2 + 1, zzY1[first2Slices], numThreads, mPrime);
+				evaluate(recvPolynomial, p_tree, reminders, degree * 2 + 1, zzY1[first2Slices], 1, mPrime);
 
 				BytesFromZZ((u8*)&rcvBlk, rep(zzY1[first2Slices][0]), lastPolyMaskBytes);
 				std::cout << "s rcvRowR: " << rcvBlk[0] << std::endl;
