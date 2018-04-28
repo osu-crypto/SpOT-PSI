@@ -1,0 +1,74 @@
+/scratch/setup-network status >> outputUnequal
+
+echo "======================================================="  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 16 -n 11041 -t 1 >> outputUnequal & ./bin/frontend.exe -r 0 -N 16 -n 11041 -t 1 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 16 -n 11041 -t 1 >> outputUnequal & ./bin/frontend.exe -r 0 -N 16 -n 11041 -t 1 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+
+./bin/frontend.exe -r 1 -N 16 -n 11041 -t 4 >> outputUnequal & ./bin/frontend.exe -r 0 -N 16 -n 11041 -t 4 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 16 -n 11041 -t 4 >> outputUnequal & ./bin/frontend.exe -r 0 -N 16 -n 11041 -t 4 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+echo "============================================"  >> outputUnequal
+
+
+
+
+
+./bin/frontend.exe -r 1 -N 20 -n 11041 -t 1 >> outputUnequal & ./bin/frontend.exe -r 0 -N 20 -n 11041 -t 1 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 20 -n 11041 -t 1 >> outputUnequal & ./bin/frontend.exe -r 0 -N 20 -n 11041 -t 1 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+
+./bin/frontend.exe -r 1 -N 20 -n 11041 -t 4 >> outputUnequal & ./bin/frontend.exe -r 0 -N 20 -n 11041 -t 4 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 20 -n 11041 -t 4 >> outputUnequal & ./bin/frontend.exe -r 0 -N 20 -n 11041 -t 4 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+echo "============================================"  >> outputUnequal
+
+
+./bin/frontend.exe -r 1 -N 24 -n 11041 -t 1 >> outputUnequal & ./bin/frontend.exe -r 0 -N 24 -n 11041 -t 1 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 24 -n 11041 -t 1 >> outputUnequal & ./bin/frontend.exe -r 0 -N 24 -n 11041 -t 1 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+
+./bin/frontend.exe -r 1 -N 24 -n 11041 -t 4 >> outputUnequal & ./bin/frontend.exe -r 0 -N 24 -n 11041 -t 4 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+
+./bin/frontend.exe -r 1 -N 24 -n 11041 -t 4 >> outputUnequal & ./bin/frontend.exe -r 0 -N 24 -n 11041 -t 4 >> outputUnequal
+sleep 10
+
+echo "============================================"  >> outputUnequal
+echo "============================================"  >> outputUnequal

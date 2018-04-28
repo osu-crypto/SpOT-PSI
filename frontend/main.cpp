@@ -86,6 +86,7 @@ std::string string_format(const std::string& format, Args ... args)
 }
 
 static u64 expectedIntersection = 100;
+u64 protocolId = 0;
 
 void usage(const char* argv0)
 {
@@ -118,10 +119,13 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	gTimer.setTimePoint("s_offline");
 	
-	if(inputs.size()!=theirSetSize) //unequal set size
+	if(inputs.size()!=theirSetSize && protocolId == 1) //unequal set size
 		sender.outputBigPoly(inputs, sendChls);
 	else
-		sender.output(inputs, sendChls);
+		if (protocolId == 0)
+			sender.output(inputs, sendChls);
+		else
+			sender.outputBestComm(inputs, sendChls);
 
 
 	gTimer.setTimePoint("s_end");
@@ -157,10 +161,14 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	
 	gTimer.setTimePoint("r_offline");
 	
-	if (inputs.size() != theirSetSize) //unequal set size
+	if (inputs.size() != theirSetSize && protocolId == 1) //unequal set size
 		recv.outputBigPoly(inputs, recvChls);
 	else
-		recv.output(inputs, recvChls);
+		if (protocolId == 0)
+			recv.output(inputs, recvChls);
+		else
+			recv.outputBestComm(inputs, recvChls);
+
 
 	
 	gTimer.setTimePoint("r_end");
@@ -698,6 +706,7 @@ int main(int argc, char** argv)
 	return 0;*/
 	
 	u64 sendSetSize = 1 << 10, recvSetSize = 1 << 8, numThreads = 1;
+	
 
 	if (argc == 9
 		&& argv[3][0] == '-' && argv[3][1] == 'N'
@@ -707,6 +716,18 @@ int main(int argc, char** argv)
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize =  atoi(argv[6]);
 		numThreads = atoi(argv[8]);
+		protocolId = 1;
+	}
+
+	if (argc == 9
+		&& argv[3][0] == '-' && argv[3][1] == 'n'
+		&& argv[5][0] == '-' && argv[5][1] == 't'
+		&& argv[7][0] == '-' && argv[7][1] == 'p')
+	{
+		sendSetSize = 1 << atoi(argv[4]);
+		recvSetSize = sendSetSize;
+		numThreads = atoi(argv[6]);
+		protocolId = atoi(argv[8]);
 	}
 
 	if (argc == 7
@@ -718,18 +739,20 @@ int main(int argc, char** argv)
 		numThreads = atoi(argv[6]);
 	}
 
-	if (argc == 5
-		&& argv[3][0] == '-' && argv[3][1] == 'n')
-	{
-		sendSetSize = 1 << atoi(argv[4]);
-		recvSetSize = sendSetSize;
-	}
 
 		
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 	std::vector<block> sendSet(sendSetSize), recvSet(recvSetSize);
 	
-	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "\t | \t numThreads: " << numThreads<< "\n";
+	std::cout << "SetSize: " << sendSetSize << " vs " << recvSetSize << "   |  numThreads: " << numThreads<< "\t";
+	
+	if(protocolId==0)
+		std::cout << "   |   IsCommOptimzed: No \n";
+	else
+		std::cout << "   |   IsCommOptimzed: Yes \n";
+
+
+
 	
 	for (u64 i = 0; i < sendSetSize; ++i)
 		sendSet[i] = prng0.get<block>();

@@ -5,7 +5,7 @@ $SolutionDir=$PWD
 $RemoteWorkingDir='/scratch/nini/prtyPSI'
 
 # only files with these extensions will be copied
-$FileMasks='**.cpp;**.c;**.h;*.bin,*.S,*.sh,*CMake*;*/Tools/*.txt;*/gsl/*;**.mak;thirdparty/linux/**.get;*/libOTe_Tests/testData/*.txt'
+$FileMasks='**.cpp;**.c;**.h;*.bin,*.S,*.sh,*CMake*;*/Tools/*.txt;*/gsl/*;**.mak;thirdparty/linux/**.get;*/libOTe_Tests/testData/*.txt,*.get'
 
 # everything in these folders will be skipped
 $ExcludeDirs='.git/;thirdparty/;Debug/;Release/;x64/;ipch/;.vs/'
