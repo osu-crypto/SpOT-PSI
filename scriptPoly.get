@@ -1,0 +1,63 @@
+/scratch/setup-network status >> outputBigPoly
+
+echo "======================================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 12 -t 1 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 12 -t 1 -p 1 >> outputBigPoly
+sleep 10
+
+echo "============================================"  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 12 -t 1 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 12 -t 1 -p 1 >> outputBigPoly
+sleep 10
+
+echo "============================================"  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 12 -t 4 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 12 -t 4 -p 1 >> outputBigPoly
+sleep 10
+
+echo "============================================"  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 12 -t 4 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 12 -t 4 -p 1 >> outputBigPoly
+sleep 10
+
+echo "======================================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 16 -t 1 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 16 -t 1 -p 1 >> outputBigPoly
+sleep 10
+
+echo "================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 16 -t 1 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 16 -t 1 -p 1 >> outputBigPoly
+sleep 10
+
+echo "================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 16 -t 4 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 16 -t 4 -p 1 >> outputBigPoly
+sleep 10
+
+echo "================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 16 -t 4 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 16 -t 4 -p 1 >> outputBigPoly
+sleep 10
+
+echo "======================================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 20 -t 1 -p 1  >> outputBigPoly & ./bin/frontend.exe -r 0 -n 20 -t 1 -p 1 >> outputBigPoly
+sleep 10
+
+echo "================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 20 -t 1 -p 1  >> outputBigPoly & ./bin/frontend.exe -r 0 -n 20 -t 1 -p 1 >> outputBigPoly
+sleep 10
+
+echo "================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 20 -t 4 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 20 -t 4 -p 1 >> outputBigPoly
+sleep 10
+
+echo "================================="  >> outputBigPoly
+
+./bin/frontend.exe -r 1 -n 20 -t 4 -p 1 >> outputBigPoly & ./bin/frontend.exe -r 0 -n 20 -t 4 -p 1 >> outputBigPoly
+sleep 10
+
+

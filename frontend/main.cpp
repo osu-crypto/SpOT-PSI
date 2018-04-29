@@ -125,7 +125,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 		if (protocolId == 0)
 			sender.output(inputs, sendChls);
 		else
-			sender.outputBestComm(inputs, sendChls);
+			sender.outputBigPoly(inputs, sendChls);
 
 
 	gTimer.setTimePoint("s_end");
@@ -167,7 +167,7 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 		if (protocolId == 0)
 			recv.output(inputs, recvChls);
 		else
-			recv.outputBestComm(inputs, recvChls);
+			recv.outputBigPoly(inputs, recvChls);
 
 
 	
