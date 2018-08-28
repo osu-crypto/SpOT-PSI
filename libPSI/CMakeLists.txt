@@ -71,9 +71,9 @@ set(GF2X_Include_Dirs "${GF2X_Dirs}include/")
     paths "${GF2X_Lib_Dirs}")
   
   # if we still cant fint it, throw an error
-  if(not GF2X_LIB) 
-	if(exists "${GF2X_Lib_Dirs}libgf2x.a")
-		set(gf2x_lib "${GF2X_Lib_Dirs}libgf2x.a")
+  if(NOT GF2X_LIB) 
+	if(EXISTS "${GF2X_Lib_Dirs}libgf2x.a")
+		set(GF2X_LIB "${GF2X_Lib_Dirs}libgf2x.a")
 	else()
 	   message(${GF2X_LIB})
 		message(fatal_error "failed to find gf2x at ${GF2X_Lib_Dirs} or at system locations." )
