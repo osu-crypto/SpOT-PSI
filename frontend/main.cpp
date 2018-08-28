@@ -694,15 +694,15 @@ int main(int argc, char** argv)
 {
 	//#####################ECHD##############
 	//curveType = 0 =>k286
-	if (argc == 9
+	if (argc == 8
 		&& argv[3][0] == '-' 
 		&& argv[3][1] == 'e' && argv[3][2] == 'c' && argv[3][3] == 'h' && argv[3][4] == 'd'
-		&& argv[5][0] == '-' && argv[5][1] == 'c'
-		&& argv[7][0] == '-' && argv[7][1] == 'n')
+		&& argv[4][0] == '-' && argv[4][1] == 'c'
+		&& argv[6][0] == '-' && argv[6][1] == 'n')
 	{
 
-		int curveType= atoi(argv[6]);
-		int	setSize= 1 << atoi(argv[8]);
+		int curveType= atoi(argv[5]);
+		int	setSize= 1 << atoi(argv[7]);
 
 		std::thread thrd = std::thread([&]() {
 			EcdhSend(curveType, setSize, 1);
