@@ -704,13 +704,12 @@ int main(int argc, char** argv)
 		int curveType= atoi(argv[5]);
 		int	setSize= 1 << atoi(argv[7]);
 
-		std::thread thrd = std::thread([&]() {
+		if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
 			EcdhSend(curveType, setSize, 1);
-		});
+		
+		if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
+			EcdhRecv(curveType, setSize, 1);
 
-		EcdhRecv(curveType, setSize, 1);
-
-		thrd.join();
 
 		return 0;
 	}
