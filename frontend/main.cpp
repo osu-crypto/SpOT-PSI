@@ -74,7 +74,7 @@ using namespace osuCrypto;
 #include <thread>
 #include <vector>
 #include <stdarg.h> 
-
+#include "ecdhMain.h"
 
 template<typename ... Args>
 std::string string_format(const std::string& format, Args ... args)
@@ -692,7 +692,28 @@ void Prty_PSI_impl()
 
 int main(int argc, char** argv)
 {
+	//#####################ECHD##############
+	//curveType = 0 =>k286
+	if (argc == 9
+		&& argv[3][0] == '-' 
+		&& argv[3][1] == 'e' && argv[3][2] == 'c' && argv[3][3] == 'h' && argv[3][4] == 'd'
+		&& argv[5][0] == '-' && argv[5][1] == 'c'
+		&& argv[7][0] == '-' && argv[7][1] == 'n')
+	{
 
+		int curveType= atoi(argv[6]);
+		int	setSize= 1 << atoi(argv[8]);
+
+		std::thread thrd = std::thread([&]() {
+			EcdhSend(curveType, setSize, 1);
+		});
+
+		EcdhRecv(curveType, setSize, 1);
+
+		thrd.join();
+
+		return 0;
+	}
 
 	/*prfOtRow_Test_Impl();
 	return 0;*/

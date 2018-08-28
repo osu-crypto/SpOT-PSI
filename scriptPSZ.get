@@ -1,0 +1,48 @@
+/scratch/setup-network status >> outputDH_PSZ
+
+echo "=================================================================="  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ
+sleep 10
+
+echo "-----------------------------------------------------------------"  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ
+sleep 10
+
+echo "=================================================================="  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ
+sleep 10
+
+echo "-----------------------------------------------------------------"  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ
+sleep 10
+
+echo "=================================================================="  >> outputDH_PSZ
+echo "=================================================================="  >> outputDH_PSZ
+echo ""  >> outputDH_PSZ
+
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ
+sleep 10
+
+echo "-----------------------------------------------------------------"  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 1 >> outputDH_PSZ
+sleep 10
+
+echo "=================================================================="  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ
+sleep 10
+
+echo "-----------------------------------------------------------------"  >> outputDH_PSZ
+
+./psi.exe -r 0 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ & ./psi.exe -r 1 -p 2 -b 16 -n 4096 -t 4 >> outputDH_PSZ
+sleep 10
+
+echo "=================================================================="  >> outputDH_PSZ
+echo "=================================================================="  >> outputDH_PSZ
+echo ""  >> outputDH_PSZ
