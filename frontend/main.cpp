@@ -98,7 +98,7 @@ void usage(const char* argv0)
 }
 
 
-void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
+void Sender(span<block> inputs, u64 theirSetSize, string ipaddr="localhost", int port=1213, u64 numThreads = 1)
 {
 	u64 psiSecParam = 40;
 
@@ -107,7 +107,8 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	// set up networking
 	std::string name = "n";
 	IOService ios;
-	Endpoint ep1(ios, "localhost", 1213, EpMode::Server, name);
+	std::cout << ipaddr << " " << port << std::endl;
+	Endpoint ep1(ios, ipaddr, port, EpMode::Server, name);
 
 	std::vector<Channel> sendChls(numThreads);
 	for (u64 i = 0; i < numThreads; ++i)
@@ -138,7 +139,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 }
 
 
-void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
+void Receiver( span<block> inputs, u64 theirSetSize, string ipaddr = "localhost", int port = 1213, u64 numThreads=1)
 {
 	u64 psiSecParam = 40;
 
@@ -147,7 +148,8 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	// set up networking
 	std::string name = "n";
 	IOService ios;
-	Endpoint ep0(ios, "localhost", 1213, EpMode::Client, name);
+	std::cout << ipaddr << " " << port << std::endl;
+	Endpoint ep0(ios, ipaddr, port, EpMode::Client, name);
 
 	std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
 	for (u64 i = 0; i < numThreads; ++i)
@@ -694,6 +696,7 @@ int main(int argc, char** argv)
 {
 	//#####################ECHD##############
 	//curveType = 0 =>k286
+	//./bin/frontend.exe -r 0 -echd -c 1 -n 8 & ./bin/frontend.exe -r 1 -echd -c 1 -n 8                                       
 	if (argc == 8
 		&& argv[3][0] == '-' 
 		&& argv[3][1] == 'e' && argv[3][2] == 'c' && argv[3][3] == 'h' && argv[3][4] == 'd'
@@ -728,37 +731,46 @@ int main(int argc, char** argv)
 	return 0;*/
 	
 	u64 sendSetSize = 1 << 10, recvSetSize = 1 << 8, numThreads = 1;
-	
+	string ipadrr= "localhost"; int port=1212;
 
-	if (argc == 9
+	if (argc == 12
 		&& argv[3][0] == '-' && argv[3][1] == 'N'
 		&& argv[5][0] == '-' && argv[5][1] == 'n'
-		&& argv[7][0] == '-' && argv[7][1] == 't')
+		&& argv[7][0] == '-' && argv[7][1] == 't'
+		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][1] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize =  atoi(argv[6]);
 		numThreads = atoi(argv[8]);
+		ipadrr = argv[10];
+		port= atoi(argv[11]);
 		protocolId = 1;
 	}
 
-	if (argc == 9
+	if (argc == 12
 		&& argv[3][0] == '-' && argv[3][1] == 'n'
 		&& argv[5][0] == '-' && argv[5][1] == 't'
-		&& argv[7][0] == '-' && argv[7][1] == 'p')
+		&& argv[7][0] == '-' && argv[7][1] == 'p'
+		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][1] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize = sendSetSize;
 		numThreads = atoi(argv[6]);
 		protocolId = atoi(argv[8]);
+		ipadrr = argv[10];
+		port = atoi(argv[11]);
 	}
 
-	if (argc == 7
+	if (argc == 10
 		&& argv[3][0] == '-' && argv[3][1] == 'n'
-		&& argv[5][0] == '-' && argv[5][1] == 't')
+		&& argv[5][0] == '-' && argv[5][1] == 't'
+		&& argv[7][0] == '-' && argv[7][1] == 'i' && argv[7][1] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize = sendSetSize;
 		numThreads = atoi(argv[6]);
+		ipadrr = argv[8];
+		port = atoi(argv[9]);
 	}
 
 
@@ -806,19 +818,19 @@ int main(int argc, char** argv)
 	if (argv[1][0] == '-' && argv[1][1] == 't') {
 		
 		std::thread thrd = std::thread([&]() {
-			Sender(sendSet, recvSetSize, numThreads);
+			Sender(sendSet, recvSetSize,"localhost",1212, numThreads);
 		});
 
-		Receiver(recvSet, sendSetSize, numThreads);
+		Receiver(recvSet, sendSetSize, "localhost", 1212, numThreads);
 
 		thrd.join();
 
 	}
 	else if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
-		Sender(sendSet, recvSetSize, numThreads);
+		Sender(sendSet, recvSetSize, ipadrr, port, numThreads);
 	}
 	else if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
-		Receiver(recvSet, sendSetSize, numThreads);
+		Receiver(recvSet, sendSetSize, ipadrr, port, numThreads);
 	}
 	else {
 		usage(argv[0]);
