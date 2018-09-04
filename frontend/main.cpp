@@ -117,6 +117,10 @@ void Sender(span<block> inputs, u64 theirSetSize, string ipaddr, int port, u64 n
 	PrtySender sender;
 	gTimer.reset();
 	gTimer.setTimePoint("s_start");
+
+	std::cout << "s_start" << std::endl;
+
+
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	gTimer.setTimePoint("s_offline");
 	
@@ -158,6 +162,9 @@ void Receiver( span<block> inputs, u64 theirSetSize, string ipaddr , int port, u
 	PrtyReceiver recv;
 	gTimer.reset();
 	gTimer.setTimePoint("r_start");
+
+	std::cout << "r_start" << std::endl;
+
 
 	recv.init(inputs.size(), theirSetSize,40, prng1,recvChls); //offline
 	
