@@ -737,7 +737,7 @@ int main(int argc, char** argv)
 		&& argv[3][0] == '-' && argv[3][1] == 'N'
 		&& argv[5][0] == '-' && argv[5][1] == 'n'
 		&& argv[7][0] == '-' && argv[7][1] == 't'
-		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][1] == 'p')
+		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][2] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize =  atoi(argv[6]);
@@ -751,7 +751,7 @@ int main(int argc, char** argv)
 		&& argv[3][0] == '-' && argv[3][1] == 'n'
 		&& argv[5][0] == '-' && argv[5][1] == 't'
 		&& argv[7][0] == '-' && argv[7][1] == 'p'
-		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][1] == 'p')
+		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][2] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize = sendSetSize;
@@ -764,7 +764,7 @@ int main(int argc, char** argv)
 	if (argc == 10
 		&& argv[3][0] == '-' && argv[3][1] == 'n'
 		&& argv[5][0] == '-' && argv[5][1] == 't'
-		&& argv[7][0] == '-' && argv[7][1] == 'i' && argv[7][1] == 'p')
+		&& argv[7][0] == '-' && argv[7][1] == 'i' && argv[7][2] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize = sendSetSize;
