@@ -771,6 +771,8 @@ int main(int argc, char** argv)
 		numThreads = atoi(argv[6]);
 		ipadrr = argv[8];
 		port = atoi(argv[9]);
+		std::cout << ipadrr << " " << port << std::endl;
+
 	}
 
 
