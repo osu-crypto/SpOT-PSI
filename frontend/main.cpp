@@ -98,7 +98,7 @@ void usage(const char* argv0)
 }
 
 
-void Sender(span<block> inputs, u64 theirSetSize, string ipaddr="localhost", int port=1213, u64 numThreads = 1)
+void Sender(span<block> inputs, u64 theirSetSize, string ipaddr, int port, u64 numThreads = 1)
 {
 	u64 psiSecParam = 40;
 
@@ -139,7 +139,7 @@ void Sender(span<block> inputs, u64 theirSetSize, string ipaddr="localhost", int
 }
 
 
-void Receiver( span<block> inputs, u64 theirSetSize, string ipaddr = "localhost", int port = 1213, u64 numThreads=1)
+void Receiver( span<block> inputs, u64 theirSetSize, string ipaddr , int port, u64 numThreads=1)
 {
 	u64 psiSecParam = 40;
 
