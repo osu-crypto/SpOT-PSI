@@ -20,7 +20,7 @@ using namespace osuCrypto;
 
 //extern u8 dummy[];
 
-void EcdhSend(int curveType, int setSize, int mTrials)
+void EcdhSend(int curveType, int setSize, std::string ipAdress, int mTrials)
 {
     PRNG prng(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
 
@@ -29,7 +29,7 @@ void EcdhSend(int curveType, int setSize, int mTrials)
 			// set up networking
 			std::string name = "n";
 			IOService ios;
-			Endpoint ep1(ios, "localhost", 1213, EpMode::Server, name);
+			Endpoint ep1(ios, ipAdress, EpMode::Server, name);
 
 			std::vector<Channel> sendChls(1);
 			for (u64 i = 0; i < 1; ++i)
@@ -54,7 +54,7 @@ void EcdhSend(int curveType, int setSize, int mTrials)
 }
 
 
-void EcdhRecv(int curveType,  int setSize, int mTrials)
+void EcdhRecv(int curveType,  int setSize, std::string ipAdress,int mTrials)
 {
 
     PRNG prng(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
@@ -66,7 +66,7 @@ void EcdhRecv(int curveType,  int setSize, int mTrials)
 			// set up networking
 			std::string name = "n";
 			IOService ios;
-			Endpoint ep0(ios, "localhost", 1213, EpMode::Client, name);
+			Endpoint ep0(ios, ipAdress, EpMode::Client, name);
 
 			std::vector<Channel> recvChls(1);
 			for (u64 i = 0; i < 1; ++i)
