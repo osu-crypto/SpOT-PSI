@@ -739,8 +739,8 @@ int main(int argc, char** argv)
 	
 
 	if (argc == 11
-		&& argv[3][0] == '-' && argv[3][1] == 'N'
-		&& argv[5][0] == '-' && argv[5][1] == 'n'
+		&& argv[3][0] == '-' && argv[3][1] == 'n'
+		&& argv[5][0] == '-' && argv[5][1] == 'N'
 		&& argv[7][0] == '-' && argv[7][1] == 't'
 		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][2] == 'p')
 	{
