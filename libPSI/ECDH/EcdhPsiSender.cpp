@@ -25,6 +25,7 @@ namespace osuCrypto
 
     void EcdhPsiSender::sendInput_k283(std::vector<block>& inputs, span<Channel> chls)
     {
+		std::cout << "curveParam = k283\n";
 
         auto curveParam = k283;
 
@@ -176,6 +177,7 @@ namespace osuCrypto
 
 	void EcdhPsiSender::sendInput_Curve25519(std::vector<block>& inputs, span<Channel> chls)
 	{
+		std::cout << "curveParam = Curve25519\n";
 
 		auto curveParam = Curve25519;
 
