@@ -86,15 +86,37 @@ std::string string_format(const std::string& format, Args ... args)
 }
 
 static u64 expectedIntersection = 100;
-u64 protocolId = 0;
+u64 protocolId = 0; //bin 
+//u64 protocolId = 1;  //sender.outputBigPoly(inputs, sendChls);
+
 
 void usage(const char* argv0)
 {
 	std::cout << "Error! Please use:" << std::endl;
-	std::cout << "\t 1. For unit test: " << argv0 << " -t" << std::endl;
-	std::cout << "\t 2. For simulation (2 terminal): " << std::endl;;
+	std::cout << "\t 1. For unit test (balanced PSI): " << argv0 << " -t" << std::endl;
+	std::cout << "\t 2. For simulation (2 terminals): " << std::endl;;
 	std::cout << "\t\t Sender terminal: " << argv0 << " -r 0" << std::endl;
 	std::cout << "\t\t Receiver terminal: " << argv0 << " -r 1" << std::endl;
+
+	std::cout << "\t 2. For 2 machines: " << std::endl;
+	std::cout << "\t\t Balanced PSI with best communication: " << std::endl;
+	std::cout << "\t\t\t Sender terminal: " << argv0 << "-r 0 -n <log(setsize)> -t <#thread> -p 0 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Receiver terminal: " << argv0 << "-r 1 -n <log(setsize)> -t <#thread> -p 0 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Sender Example: " << argv0 << "-r 0 -n 16 -t 1 -p 0 -ip 172.31.22.179:1212" << std::endl;
+
+
+	std::cout << "\t\t Balanced PSI with running time: " << std::endl;
+	std::cout << "\t\t\t Sender terminal: " << argv0 << "-r 0 -n <log(setsize)> -t <#thread> -p 1 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Receiver terminal: " << argv0 << "-r 1 -n <log(setsize)> -t <#thread> -p 1 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Sender Example: " << argv0 << "-r 0 -n 16 -t 1 -p 1 -ip 172.31.22.179:1212" << std::endl;
+
+
+	std::cout << "\t\t Unbalanced PSI: " << std::endl;
+	std::cout << "\t\t\t Sender terminal: " << argv0 << "-r 0 -n <log(largesize)> -N <smallsize> -t <#thread> -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Receiver terminal: " << argv0 << "-r 1 -n <log(largesize)> -N <smallsize> -t <#thread> -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Sender Example: " << argv0 << "-r 0 -n 20 -N 5000 -t 1 -ip 172.31.22.179:1212" << std::endl;
+
+
 }
 
 
@@ -735,7 +757,7 @@ int main(int argc, char** argv)
 	/*Prty_PSI_impl();
 	return 0;*/
 	
-	u64 sendSetSize = 1 << 10, recvSetSize = 1 << 8, numThreads = 1;
+	u64 sendSetSize = 1 << 8, recvSetSize = 1 << 8, numThreads = 1;
 	
 
 	if (argc == 11
