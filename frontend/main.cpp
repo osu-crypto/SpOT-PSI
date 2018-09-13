@@ -743,6 +743,14 @@ int main(int argc, char** argv)
 			EcdhRecv(curveType, setSize, ipadrr, 1);
 
 
+		//echd: Curve25519
+		//--server : . / bin / frontend.exe - r 0 - echd - c 1 - n 8 - ip 172.31.22.179 : 1212
+		//--client : . / bin / frontend.exe - r 1 - echd - c 1 - n 8 - ip 172.31.22.179 : 1212
+
+		//echd : k283
+		//--server : . / bin / frontend.exe - r 0 - echd - c 0 - n 8 - ip 172.31.22.179 : 1212
+		//--client : . / bin / frontend.exe - r 1 - echd - c 0 - n 8 - ip 172.31.22.179 : 1212
+
 		return 0;
 	}
 
@@ -771,6 +779,8 @@ int main(int argc, char** argv)
 		numThreads = atoi(argv[8]);
 		ipadrr = argv[10];
 		protocolId = 1;
+
+
 	}
 
 	if (argc == 11
