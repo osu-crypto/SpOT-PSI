@@ -143,18 +143,13 @@ void Sender(span<block> inputs, u64 theirSetSize, string ipAddr_Port, u64 numThr
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	gTimer.setTimePoint("s_offline");
 	
-	//if(inputs.size()!=theirSetSize && protocolId == 1) //unequal set size
-	//	sender.outputBigPoly(inputs, sendChls);
-	//else
-		/*if (protocolId == 0)
+	if(inputs.size()!=theirSetSize && protocolId == 1) //unequal set size
+		sender.outputBigPoly(inputs, sendChls);
+	else
+		if (protocolId == 0)
 			sender.output(inputs, sendChls);
-<<<<<<< HEAD
-		else*/
-			sender.outputBestComm(inputs, sendChls);
-=======
 		else
-			sender.outputBigPoly(inputs, sendChls);
->>>>>>> e1f735e051d71798fd58ad9ab086549f1bddfead
+			sender.outputBestComm(inputs, sendChls);
 
 
 	gTimer.setTimePoint("s_end");
@@ -190,18 +185,13 @@ void Receiver( span<block> inputs, u64 theirSetSize, string ipAddr_Port, u64 num
 	
 	gTimer.setTimePoint("r_offline");
 	
-	//if (inputs.size() != theirSetSize && protocolId == 1) //unequal set size
-	//	recv.outputBigPoly(inputs, recvChls);
-	//else
-		/*if (protocolId == 0)
+	if (inputs.size() != theirSetSize && protocolId == 1) //unequal set size
+		recv.outputBigPoly(inputs, recvChls);
+	else
+		if (protocolId == 0)
 			recv.output(inputs, recvChls);
-<<<<<<< HEAD
-		else*/
-			recv.outputBestComm(inputs, recvChls);
-=======
 		else
-			recv.outputBigPoly(inputs, recvChls);
->>>>>>> e1f735e051d71798fd58ad9ab086549f1bddfead
+			recv.outputBestComm(inputs, recvChls);
 
 
 	
@@ -781,10 +771,8 @@ void Prty_PSI_impl()
 
 int main(int argc, char** argv)
 {
-<<<<<<< HEAD
-	CuckooHasher_Test_Impl();
-	return 0;
-=======
+	/*CuckooHasher_Test_Impl();
+	return 0;*/
 	//#####################ECHD##############
 	//curveType = 0 =>k286
 	//./bin/frontend.exe -r 0 -echd -c 1 -n 8 & ./bin/frontend.exe -r 1 -echd -c 1 -n 8                                       
@@ -823,7 +811,6 @@ int main(int argc, char** argv)
 
 		return 0;
 	}
->>>>>>> e1f735e051d71798fd58ad9ab086549f1bddfead
 
 	/*prfOtRow_Test_Impl();
 	return 0;*/
