@@ -21,6 +21,7 @@
     <ClCompile Include="PRTY\PrtyReceiver.cpp" />
     <ClCompile Include="PRTY\PrtySender.cpp" />
     <ClCompile Include="Tools\BalancedIndex.cpp" />
+    <ClCompile Include="Tools\CuckooHasher.cpp" />
     <ClCompile Include="Tools\SimpleIndex .cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -31,6 +32,7 @@
     <ClInclude Include="PRTY\PrtySender.h" />
     <ClInclude Include="PsiDefines.h" />
     <ClInclude Include="Tools\BalancedIndex.h" />
+    <ClInclude Include="Tools\CuckooHasher.h" />
     <ClInclude Include="Tools\SimpleIndex.h" />
   </ItemGroup>
   <ItemGroup>

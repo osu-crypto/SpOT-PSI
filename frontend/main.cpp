@@ -70,6 +70,7 @@ using namespace osuCrypto;
 #include "PRTY/PrtySender.h"
 #include "PRTY/PrtyReceiver.h"
 #include "Tools/BalancedIndex.h"
+#include "Tools/CuckooHasher.h"
 
 #include <thread>
 #include <vector>
@@ -119,12 +120,12 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	gTimer.setTimePoint("s_offline");
 	
-	if(inputs.size()!=theirSetSize && protocolId == 1) //unequal set size
-		sender.outputBigPoly(inputs, sendChls);
-	else
-		if (protocolId == 0)
+	//if(inputs.size()!=theirSetSize && protocolId == 1) //unequal set size
+	//	sender.outputBigPoly(inputs, sendChls);
+	//else
+		/*if (protocolId == 0)
 			sender.output(inputs, sendChls);
-		else
+		else*/
 			sender.outputBestComm(inputs, sendChls);
 
 
@@ -161,12 +162,12 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	
 	gTimer.setTimePoint("r_offline");
 	
-	if (inputs.size() != theirSetSize && protocolId == 1) //unequal set size
-		recv.outputBigPoly(inputs, recvChls);
-	else
-		if (protocolId == 0)
+	//if (inputs.size() != theirSetSize && protocolId == 1) //unequal set size
+	//	recv.outputBigPoly(inputs, recvChls);
+	//else
+		/*if (protocolId == 0)
 			recv.output(inputs, recvChls);
-		else
+		else*/
 			recv.outputBestComm(inputs, recvChls);
 
 
@@ -496,6 +497,61 @@ void Hashing_Test_Impl()
 
 }
 
+void CuckooHasher_Test_Impl()
+{
+	u64 setSize = 1 << 20;
+
+	u64 h = 2;
+	std::vector<u64> _hashes(setSize * h + 1);
+	MatrixView<u64> hashes(_hashes.begin(), _hashes.end(), h);
+	PRNG prng(ZeroBlock);
+
+	for (u64 i = 0; i < hashes.bounds()[0]; ++i)
+	{
+		for (u64 j = 0; j < h; ++j)
+		{
+			hashes[i][j] = prng.get<u64>();
+		}
+	}
+
+	CuckooHasher hashMap0;
+	CuckooHasher hashMap1;
+	CuckooHasher::Workspace w(1);
+
+	//hashMap0.init(setSize, 40, true);
+	hashMap1.init(setSize, 40, true);
+
+	for (u64 i = 0; i < setSize; ++i)
+	{
+		//if (i == 6) hashMap0.print();
+
+		//hashMap0.insert(i, hashes[i]);
+
+		std::vector<u64> tt{ i };
+		MatrixView<u64> mm(hashes[i].data(), 1, 2);
+		hashMap1.insertBatch(tt, mm, w);
+
+		//if (i == 6) hashMap0.print();
+		//if (i == 6) hashMap1.print();
+
+		//if (hashMap0 != hashMap1)
+		//{
+		//    std::cout << i << std::endl;
+
+		//    throw UnitTestFail();
+		//}
+	}
+
+	hashMap1.print();
+
+
+	/*if (hashMap0 != hashMap1)
+	{
+	throw UnitTestFail();
+	}*/
+}
+
+
 
 void prfOtRow_Test_Impl()
 {
@@ -692,7 +748,8 @@ void Prty_PSI_impl()
 
 int main(int argc, char** argv)
 {
-
+	CuckooHasher_Test_Impl();
+	return 0;
 
 	/*prfOtRow_Test_Impl();
 	return 0;*/

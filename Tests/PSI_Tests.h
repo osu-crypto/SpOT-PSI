@@ -10,4 +10,5 @@ namespace tests_libOTe
 	void Poly_Test_Impl();
 	void Prty_PSI_impl();
 	void prfOtRow_Test_Impl();
+	void CuckooHasher_Test_Impl();
 }

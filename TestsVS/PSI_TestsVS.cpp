@@ -48,6 +48,12 @@ namespace tests_libOTe
 			prfOtRow_Test_Impl();
 		}
 
+		TEST_METHOD(CuckooHasher_PSI_Impl_TestVS)
+		{
+			InitDebugPrinting();
+			CuckooHasher_Test_Impl();
+		}
+
 	};
 }
 #endif

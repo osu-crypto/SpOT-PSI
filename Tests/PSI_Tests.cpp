@@ -32,6 +32,7 @@
 #include "PRTY/PrtyReceiver.h"
 #include "Tools/BalancedIndex.h"
 #include "Tools/SimpleIndex.h"
+#include "Tools/CuckooHasher.h"
 
 #include "Common.h"
 #include <thread>
@@ -50,6 +51,60 @@ using namespace osuCrypto;
 
 namespace tests_libOTe
 {
+	void CuckooHasher_Test_Impl()
+	{
+		u64 setSize = 1<<16;
+
+		u64 h = 2;
+		std::vector<u64> _hashes(setSize * h + 1);
+		MatrixView<u64> hashes(_hashes.begin(), _hashes.end(), h);
+		PRNG prng(ZeroBlock);
+
+		for (u64 i = 0; i < hashes.bounds()[0]; ++i)
+		{
+			for (u64 j = 0; j < h; ++j)
+			{
+				hashes[i][j] = prng.get<u64>();
+			}
+		}
+
+		CuckooHasher hashMap0;
+		CuckooHasher hashMap1;
+		CuckooHasher::Workspace w(1);
+
+		//hashMap0.init(setSize, 40, true);
+		hashMap1.init(setSize, 40, true);
+
+		for (u64 i = 0; i < setSize; ++i)
+		{
+			//if (i == 6) hashMap0.print();
+
+			//hashMap0.insert(i, hashes[i]);
+
+			std::vector<u64> tt{ i };
+			MatrixView<u64> mm(hashes[i].data(), 1, 2);
+			hashMap1.insertBatch(tt, mm, w);
+
+			//if (i == 6) hashMap0.print();
+			//if (i == 6) hashMap1.print();
+
+			//if (hashMap0 != hashMap1)
+			//{
+			//    std::cout << i << std::endl;
+
+			//    throw UnitTestFail();
+			//}
+		}
+
+		hashMap1.print();
+
+		
+		/*if (hashMap0 != hashMap1)
+		{
+			throw UnitTestFail();
+		}*/
+	}
+
 	inline void sse_trans(uint8_t *inp, int nrows, int ncols) {
 #   define INP(x,y) inp[(x)*ncols/8 + (y)/8]
 #   define OUT(x,y) inp[(y)*nrows/8 + (x)/8]
