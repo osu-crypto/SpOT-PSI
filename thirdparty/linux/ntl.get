@@ -1,0 +1,14 @@
+wget http://www.shoup.net/ntl/ntl-10.4.0.tar.gz
+tar -zxvf ntl-10.4.0.tar.gz 
+mv ntl-10.4.0 ntl
+rm ntl-10.4.0.tar.gz
+
+cp ./ntl_patch/* ./ntl/include/NTL/
+
+linux=$(pwd)
+cd ntl/src
+./configure PREFIX=$linux/gmp GMP_PREFIX=$linux/gmp NTL_THREAD_BOOST=on NTL_FFT_LAZYMUL=on NTL_FFT_BIGTAB=on NTL_GF2X_LIB=on  GF2X_PREFIX=$linux/gf2x
+
+make -j20
+
+mv ./ntl.a ./libntl.a

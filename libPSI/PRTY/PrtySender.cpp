@@ -993,119 +993,89 @@ namespace osuCrypto
 		};
 
 		std::sort(globalHash.begin(), globalHash.end(), compareBlockFunction);
-
 		gTimer.setTimePoint("s_sort");
 
-		std::vector<u8> sendBuff(1.02*inputs.size()*(hashMaskBytes));
-
-		
 		//block 
 		block boundMaskDiff = ZeroBlock;
-		for (u64 i = 0; i < hashMaskBytes*8; i++)
+		for (u64 i = 0; i < hashMaskBytes * 8; i++)
 			boundMaskDiff = boundMaskDiff^mOneBlocks[i];
-
 		//std::cout << boundMaskDiff << "  boundMaskDiff\n";
-
-
-		
-		u64 iterSendDiff = 0;
-
-		memcpy(sendBuff.data(), (u8*)&globalHash[0], n1n2MaskBytes);
-		iterSendDiff += n1n2MaskBytes;
-
-
-		/*block aaa = ZeroBlock;
-		memcpy((u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
-		std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";*/
-
-
-		block diff;
-		for (u64 idx = 0; idx < inputs.size()-1; idx++)
-		{
-			diff = globalHash[idx + 1] - globalHash[idx];
-
-			if (memcmp(&diff, &boundMaskDiff, hashMaskBytes) < 0)
-			{
-				//std::cout << diff << "  " << idx << "\t ==diff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
-				memcpy(sendBuff.data()+ iterSendDiff, (u8*)&diff, hashMaskBytes);
-				iterSendDiff += hashMaskBytes;
-			}
-			else
-			{
-				//std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
-
-				memcpy(sendBuff.data() + iterSendDiff, (u8*)&ZeroBlock, hashMaskBytes);
-				iterSendDiff += hashMaskBytes;
-			
-				memcpy(sendBuff.data() + iterSendDiff, (u8*)& globalHash[idx+1], n1n2MaskBytes);
-				iterSendDiff += n1n2MaskBytes;
-			}
-			if (iterSendDiff > sendBuff.size())
-			{
-				std::cout << "iterSendDiff > sendBuff.size(): " << iterSendDiff << "\t" << sendBuff.size() << "\n";
-				sendBuff.resize(sendBuff.size() + (inputs.size() - iterSendDiff)*hashMaskBytes);
-			}
-
-			//std::cout << "s mask: " << idx << "  " << globalHash[idx+1] << " - " <<globalHash[idx] << " ===diff:===" << diff << "\n";
-
-		}
-		//memcpy(sendBuff.data() + iterSendDiff, (u8*)& ZeroBlock, sendBuff.size()- iterSendDiff);
-
-		
-		
-
-		chls[0].asyncSend(std::move(sendBuff));
-
 
 		auto sendingMask = [&](u64 t)
 		{
-			auto& chl = chls[t]; //parallel along with inputs
-			u64 startIdx = inputs.size() * t / numThreads;
-			u64 tempEndIdx = (inputs.size() * (t + 1) / numThreads);
-			u64 endIdx = std::min(tempEndIdx, (u64)inputs.size());
+			auto& chl = chls[t];
+
+			u64 startIdx = mMyInputSize * t / numThreads;
+			u64 tempEndIdx = mMyInputSize* (t + 1) / numThreads;
+			u64 endIdx = std::min(tempEndIdx, mMyInputSize);
+
+			
+			/*block aaa = ZeroBlock;
+			memcpy((u8*)&aaa, sendBuff.data(), n1n2MaskBytes);
+			std::cout << aaa << " sendBuff[0] \t" << globalHash[0] << "\n";*/
 
 
-			for (u64 i = startIdx; i < endIdx; i += stepSizeMaskSent)
+			block diff;
+			for (u64 i = startIdx; i < endIdx - 1; i += stepSizeMaskSent)
 			{
-				auto curStepSize = std::min(stepSizeMaskSent, endIdx - i);
+				auto curStepSize = std::min(stepSizeMaskSent, endIdx-1 - i);
 
-					std::vector<u8> sendBuff(curStepSize*hashMaskBytes);
 
-					memcpy(sendBuff.data(), (u8*)&globalHash[startIdx], hashMaskBytes);
+				std::vector<u8> sendBuff(1.02*curStepSize*(hashMaskBytes));
 
-					block diff;
-					for (u64 idx = 1; idx < curStepSize; idx++)
+				u64 iterSendDiff = 0;
+
+				memcpy(sendBuff.data(), (u8*)&globalHash[i], n1n2MaskBytes);
+				iterSendDiff += n1n2MaskBytes;
+
+				for (u64 k = 0; k < curStepSize; ++k)
+				{
+					u64 idx = i + k;
+
+					diff = globalHash[idx + 1] - globalHash[idx];
+
+					if (memcmp(&diff, &boundMaskDiff, hashMaskBytes) < 0)
 					{
-						//diff = globalHash[idx] ^ globalHash[idx - 1];
-						diff = globalHash[startIdx+idx];
-						memcpy(sendBuff.data() + idx*hashMaskBytes, (u8*)&diff, hashMaskBytes);
-
+						//std::cout << diff << "  " << idx << "\t ==diff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
+						memcpy(sendBuff.data() + iterSendDiff, (u8*)&diff, hashMaskBytes);
+						iterSendDiff += hashMaskBytes;
 					}
-					chl.asyncSend(std::move(sendBuff));
-
-#ifdef PSI_PRINT
-					for (u64 k = 0; k < curStepSize; ++k)
+					else
 					{
-						block globalTest;
-						memcpy((u8*)&globalTest, sendBuff[hIdx].data() + k* hashMaskBytes, hashMaskBytes);
-						std::cout << IoStream::lock;
-						std::cout << "sendBuffs " << hIdx << " " << k << "\t" << globalTest << "\n";
-						std::cout << IoStream::unlock;
-					}
-#endif // PSI_PRINT
+						//std::cout << diff << "  " << idx << "\t ==dddddiff==\t" << globalHash[idx + 1] << "\t" << globalHash[idx] << "\n";
 
+						memcpy(sendBuff.data() + iterSendDiff, (u8*)&ZeroBlock, hashMaskBytes);
+						iterSendDiff += hashMaskBytes;
+
+						memcpy(sendBuff.data() + iterSendDiff, (u8*)& globalHash[idx + 1], n1n2MaskBytes);
+						iterSendDiff += n1n2MaskBytes;
+					}
+					if (iterSendDiff > sendBuff.size())
+					{
+						std::cout << "iterSendDiff > sendBuff.size(): " << iterSendDiff << "\t" << sendBuff.size() << "\n";
+						sendBuff.resize(sendBuff.size() + (inputs.size() - iterSendDiff)*hashMaskBytes);
+					}
+
+					//std::cout << "s mask: " << idx << "  " << globalHash[idx+1] << " - " <<globalHash[idx] << " ===diff:===" << diff << "\n";
+
+				}
+				//memcpy(sendBuff.data() + iterSendDiff, (u8*)& ZeroBlock, sendBuff.size()- iterSendDiff);
+
+
+				chl.asyncSend(std::move(sendBuff));
 			}
 		};
 
-		//for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
-		//{
-		//	thrds[i] = std::thread([=] {
-		//		sendingMask(i);
-		//	});
-		//}
+	
+		for (u64 i = 0; i < thrds.size(); ++i)//thrds.size()
+		{
+			thrds[i] = std::thread([=] {
+				sendingMask(i);
+			});
+		}
 
-		//for (auto& thrd : thrds)
-		//	thrd.join();
+		for (auto& thrd : thrds)
+			thrd.join();
 
 
 #endif

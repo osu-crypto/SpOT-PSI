@@ -1,0 +1,14 @@
+wget https://gmplib.org/download/gmp/gmp-6.1.2.tar.bz2
+
+tar -jxvf gmp-6.1.2.tar.bz2 
+mv gmp-6.1.2 gmp
+rm gmp-6.1.2.tar.bz2
+
+cd gmp
+./configure --prefix=$PWD 
+
+make
+make check
+make install
+
+cd ..

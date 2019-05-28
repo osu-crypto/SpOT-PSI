@@ -1,0 +1,12 @@
+wget https://gforge.inria.fr/frs/download.php/file/36934/gf2x-1.2.tar.gz
+tar -zxvf gf2x-1.2.tar.gz 
+mv gf2x-1.2 gf2x
+rm gf2x-1.2.tar.gz
+
+cd gf2x
+./configure --prefix=$PWD ABI=64 CFLAGS="-m64 -O2"
+make
+make check
+make install
+
+cd ..

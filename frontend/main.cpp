@@ -75,7 +75,7 @@ using namespace osuCrypto;
 #include <thread>
 #include <vector>
 #include <stdarg.h> 
-
+#include "ecdhMain.h"
 
 template<typename ... Args>
 std::string string_format(const std::string& format, Args ... args)
@@ -87,19 +87,41 @@ std::string string_format(const std::string& format, Args ... args)
 }
 
 static u64 expectedIntersection = 100;
-u64 protocolId = 0;
+u64 protocolId = 0; //bin 
+//u64 protocolId = 1;  //sender.outputBigPoly(inputs, sendChls);
+
 
 void usage(const char* argv0)
 {
 	std::cout << "Error! Please use:" << std::endl;
-	std::cout << "\t 1. For unit test: " << argv0 << " -t" << std::endl;
-	std::cout << "\t 2. For simulation (2 terminal): " << std::endl;;
+	std::cout << "\t 1. For unit test (balanced PSI): " << argv0 << " -t" << std::endl;
+	std::cout << "\t 2. For simulation (2 terminals): " << std::endl;;
 	std::cout << "\t\t Sender terminal: " << argv0 << " -r 0" << std::endl;
 	std::cout << "\t\t Receiver terminal: " << argv0 << " -r 1" << std::endl;
+
+	std::cout << "\t 2. For 2 machines: " << std::endl;
+	std::cout << "\t\t Balanced PSI with best communication: " << std::endl;
+	std::cout << "\t\t\t Sender terminal: " << argv0 << "-r 0 -n <log(setsize)> -t <#thread> -p 0 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Receiver terminal: " << argv0 << "-r 1 -n <log(setsize)> -t <#thread> -p 0 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Sender Example: " << argv0 << "-r 0 -n 16 -t 1 -p 0 -ip 172.31.22.179:1212" << std::endl;
+
+
+	std::cout << "\t\t Balanced PSI with running time: " << std::endl;
+	std::cout << "\t\t\t Sender terminal: " << argv0 << "-r 0 -n <log(setsize)> -t <#thread> -p 1 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Receiver terminal: " << argv0 << "-r 1 -n <log(setsize)> -t <#thread> -p 1 -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Sender Example: " << argv0 << "-r 0 -n 16 -t 1 -p 1 -ip 172.31.22.179:1212" << std::endl;
+
+
+	std::cout << "\t\t Unbalanced PSI: " << std::endl;
+	std::cout << "\t\t\t Sender terminal: " << argv0 << "-r 0 -n <log(largesize)> -N <smallsize> -t <#thread> -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Receiver terminal: " << argv0 << "-r 1 -n <log(largesize)> -N <smallsize> -t <#thread> -ip <ip:port>" << std::endl;
+	std::cout << "\t\t\t Sender Example: " << argv0 << "-r 0 -n 20 -N 5000 -t 1 -ip 172.31.22.179:1212" << std::endl;
+
+
 }
 
 
-void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
+void Sender(span<block> inputs, u64 theirSetSize, string ipAddr_Port, u64 numThreads = 1)
 {
 	u64 psiSecParam = 40;
 
@@ -108,7 +130,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	// set up networking
 	std::string name = "n";
 	IOService ios;
-	Endpoint ep1(ios, "localhost", 1213, EpMode::Server, name);
+	Endpoint ep1(ios, ipAddr_Port, EpMode::Server, name);
 
 	std::vector<Channel> sendChls(numThreads);
 	for (u64 i = 0; i < numThreads; ++i)
@@ -117,6 +139,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	PrtySender sender;
 	gTimer.reset();
 	gTimer.setTimePoint("s_start");
+
 	sender.init(inputs.size(), theirSetSize,40, prng0,sendChls);
 	gTimer.setTimePoint("s_offline");
 	
@@ -125,8 +148,13 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 	//else
 		/*if (protocolId == 0)
 			sender.output(inputs, sendChls);
+<<<<<<< HEAD
 		else*/
 			sender.outputBestComm(inputs, sendChls);
+=======
+		else
+			sender.outputBigPoly(inputs, sendChls);
+>>>>>>> e1f735e051d71798fd58ad9ab086549f1bddfead
 
 
 	gTimer.setTimePoint("s_end");
@@ -139,7 +167,7 @@ void Sender(span<block> inputs, u64 theirSetSize, u64 numThreads = 1)
 }
 
 
-void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
+void Receiver( span<block> inputs, u64 theirSetSize, string ipAddr_Port, u64 numThreads=1)
 {
 	u64 psiSecParam = 40;
 
@@ -148,7 +176,7 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	// set up networking
 	std::string name = "n";
 	IOService ios;
-	Endpoint ep0(ios, "localhost", 1213, EpMode::Client, name);
+	Endpoint ep0(ios, ipAddr_Port, EpMode::Client, name);
 
 	std::vector<Channel> sendChls(numThreads), recvChls(numThreads);
 	for (u64 i = 0; i < numThreads; ++i)
@@ -167,8 +195,13 @@ void Receiver( span<block> inputs, u64 theirSetSize, u64 numThreads=1)
 	//else
 		/*if (protocolId == 0)
 			recv.output(inputs, recvChls);
+<<<<<<< HEAD
 		else*/
 			recv.outputBestComm(inputs, recvChls);
+=======
+		else
+			recv.outputBigPoly(inputs, recvChls);
+>>>>>>> e1f735e051d71798fd58ad9ab086549f1bddfead
 
 
 	
@@ -748,8 +781,49 @@ void Prty_PSI_impl()
 
 int main(int argc, char** argv)
 {
+<<<<<<< HEAD
 	CuckooHasher_Test_Impl();
 	return 0;
+=======
+	//#####################ECHD##############
+	//curveType = 0 =>k286
+	//./bin/frontend.exe -r 0 -echd -c 1 -n 8 & ./bin/frontend.exe -r 1 -echd -c 1 -n 8                                       
+
+
+	string ipadrr = "localhost:1212";
+
+	if (argc == 10
+		&& argv[3][0] == '-' 
+		&& argv[3][1] == 'e' && argv[3][2] == 'c' && argv[3][3] == 'h' && argv[3][4] == 'd'
+		&& argv[4][0] == '-' && argv[4][1] == 'c'
+		&& argv[6][0] == '-' && argv[6][1] == 'n'
+		&& argv[8][0] == '-' && argv[8][1] == 'i' && argv[8][2] == 'p')
+	{
+
+		int curveType= atoi(argv[5]);
+		int	setSize= 1 << atoi(argv[7]);
+		ipadrr =argv[9];
+
+		std::cout << "SetSize: " << setSize << "\n";
+
+		if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) 
+			EcdhSend(curveType, setSize, ipadrr, 1);
+		
+		if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) 
+			EcdhRecv(curveType, setSize, ipadrr, 1);
+
+
+		//echd: Curve25519
+		//--server : . / bin / frontend.exe - r 0 - echd - c 1 - n 8 - ip 172.31.22.179 : 1212
+		//--client : . / bin / frontend.exe - r 1 - echd - c 1 - n 8 - ip 172.31.22.179 : 1212
+
+		//echd : k283
+		//--server : . / bin / frontend.exe - r 0 - echd - c 0 - n 8 - ip 172.31.22.179 : 1212
+		//--client : . / bin / frontend.exe - r 1 - echd - c 0 - n 8 - ip 172.31.22.179 : 1212
+
+		return 0;
+	}
+>>>>>>> e1f735e051d71798fd58ad9ab086549f1bddfead
 
 	/*prfOtRow_Test_Impl();
 	return 0;*/
@@ -762,38 +836,46 @@ int main(int argc, char** argv)
 	/*Prty_PSI_impl();
 	return 0;*/
 	
-	u64 sendSetSize = 1 << 10, recvSetSize = 1 << 8, numThreads = 1;
+	u64 sendSetSize = 1 << 8, recvSetSize = 1 << 8, numThreads = 1;
 	
 
-	if (argc == 9
-		&& argv[3][0] == '-' && argv[3][1] == 'N'
-		&& argv[5][0] == '-' && argv[5][1] == 'n'
-		&& argv[7][0] == '-' && argv[7][1] == 't')
+	if (argc == 11
+		&& argv[3][0] == '-' && argv[3][1] == 'n'
+		&& argv[5][0] == '-' && argv[5][1] == 'N'
+		&& argv[7][0] == '-' && argv[7][1] == 't'
+		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][2] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize =  atoi(argv[6]);
 		numThreads = atoi(argv[8]);
+		ipadrr = argv[10];
 		protocolId = 1;
+
+
 	}
 
-	if (argc == 9
+	if (argc == 11
 		&& argv[3][0] == '-' && argv[3][1] == 'n'
 		&& argv[5][0] == '-' && argv[5][1] == 't'
-		&& argv[7][0] == '-' && argv[7][1] == 'p')
+		&& argv[7][0] == '-' && argv[7][1] == 'p'
+		&& argv[9][0] == '-' && argv[9][1] == 'i' && argv[9][2] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize = sendSetSize;
 		numThreads = atoi(argv[6]);
 		protocolId = atoi(argv[8]);
+		ipadrr = argv[10];
 	}
 
-	if (argc == 7
+	if (argc == 9
 		&& argv[3][0] == '-' && argv[3][1] == 'n'
-		&& argv[5][0] == '-' && argv[5][1] == 't')
+		&& argv[5][0] == '-' && argv[5][1] == 't'
+		&& argv[7][0] == '-' && argv[7][1] == 'i' && argv[7][2] == 'p')
 	{
 		sendSetSize = 1 << atoi(argv[4]);
 		recvSetSize = sendSetSize;
 		numThreads = atoi(argv[6]);
+		ipadrr = argv[8];
 	}
 
 
@@ -841,19 +923,19 @@ int main(int argc, char** argv)
 	if (argv[1][0] == '-' && argv[1][1] == 't') {
 		
 		std::thread thrd = std::thread([&]() {
-			Sender(sendSet, recvSetSize, numThreads);
+			Sender(sendSet, recvSetSize,"localhost:1212", numThreads);
 		});
 
-		Receiver(recvSet, sendSetSize, numThreads);
+		Receiver(recvSet, sendSetSize, "localhost:1212", numThreads);
 
 		thrd.join();
 
 	}
 	else if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 0) {
-		Sender(sendSet, recvSetSize, numThreads);
+		Sender(sendSet, recvSetSize, ipadrr, numThreads);
 	}
 	else if (argv[1][0] == '-' && argv[1][1] == 'r' && atoi(argv[2]) == 1) {
-		Receiver(recvSet, sendSetSize, numThreads);
+		Receiver(recvSet, sendSetSize, ipadrr, numThreads);
 	}
 	else {
 		usage(argv[0]);

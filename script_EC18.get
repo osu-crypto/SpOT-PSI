@@ -1,0 +1,19 @@
+cd ~/SpOT-PSI_impl/
+Server:  ./bin/frontend.exe -r 0 -echd -c 0 -n 20 -ip 172.31.22.179:1212
+Client: ./bin/frontend.exe -r 1 -echd -c 0 -n 20 -ip 172.31.22.179:1212 
+
+cd ~/SpOT-PSI_impl/
+Server:  ./bin/frontend.exe -r 0 -echd -c 1 -n 20 -ip 172.31.22.179:1212
+Client:  ./bin/frontend.exe -r 1 -echd -c 1 -n 20 -ip 172.31.22.179:1212
+
+cd ~/SpOT-PSI_impl/
+Server:  ./bin/frontend.exe -r 0 -n 20 -t 1 -p 0 -ip 172.31.22.179:1212
+Client:  ./bin/frontend.exe -r 1 -n 20 -t 1 -p 0 -ip 172.31.22.179:1212
+
+cd ~/SpOT-PSI_impl/
+Server:  ./bin/frontend.exe -r 0 -n 20 -t 1 -p 1 -ip 172.31.22.179:1212
+Client:  ./bin/frontend.exe -r 1 -n 20 -t 1 -p 1 -ip 172.31.22.179:1212
+
+cd ~/BaRK-OPRF/
+Server:  ./bin/frontend.exe -r 0 -n 20 -ip 172.31.22.179:1212
+Client:  ./bin/frontend.exe -r 1 -n 20 -ip 172.31.22.179:1212

@@ -83,12 +83,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CLP.cpp" />
+    <ClCompile Include="ecdhMain.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="signalHandle.cpp" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CLP.h" />
+    <ClInclude Include="ecdhMain.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="signalHandle.h" />
     <ClInclude Include="util.h" />

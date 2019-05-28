@@ -15,6 +15,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ECDH\EcdhPsiReceiver.cpp" />
+    <ClCompile Include="ECDH\EcdhPsiSender.cpp" />
     <ClCompile Include="Poly\polyFFT.cpp" />
     <ClCompile Include="Poly\polyFFT2.cpp" />
     <ClCompile Include="Poly\polyNTL.cpp" />
@@ -25,6 +27,8 @@
     <ClCompile Include="Tools\SimpleIndex .cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ECDH\EcdhPsiReceiver.h" />
+    <ClInclude Include="ECDH\EcdhPsiSender.h" />
     <ClInclude Include="Poly\polyFFT.h" />
     <ClInclude Include="Poly\polyFFT2.h" />
     <ClInclude Include="Poly\polyNTL.h" />
