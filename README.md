@@ -1,16 +1,16 @@
 # Sparse OT Extension & PSI
-This is the implementation of our [CRYPTO 2019](http://dl.acm.org/citation.cfm?id=2978381)  paper: **SpOT-Light: Lightweight Private Set Intersection from Sparse OT Extension**[[ePrint](https://eprint.iacr.org/2019/xxx)]. 
+This is the implementation of our [CRYPTO 2019](http://dl.acm.org/citation.cfm?id=2978381)  paper: **SpOT-Light: Lightweight Private Set Intersection from Sparse OT Extension**[[ePrint](https://eprint.iacr.org/2019/634.pdf)]. 
 
 Evaluating on a single server (`2 36-cores Intel Xeon CPU E5-2699 v3 @ 2.30GHz and 256GB of RAM`) with a single thread per party, each party has `2^20` items, our `spot-low` protocol requires  `270` seconds and `63.1` MB , and our `spot-fast` protocol requires  `25.6` seconds and `76.4` MB. 
 
 ## Installations
 
 ### Required libraries
- C++ compiler with C++14 support. There are several library dependencies including [`Boost`](https://sourceforge.net/projects/boost/), [`Miracl`](https://github.com/miracl/MIRACL), [`NTL`](http://www.shoup.net/ntl/) , and [`libOTe`](https://github.com/osu-crypto/libOTe). For `libOTe`, it requires CPU supporting `PCLMUL`, `AES-NI`, and `SSE4.1`. Optional: `nasm` for improved SHA1 performance.   Our code has been tested on both Windows (Microsoft Visual Studio) and Linux. To install the required libraries: 
-  * windows: open PowerShell,  `cd ./thirdparty`, and `.\all_win.ps1` 
-  * linux: `cd ./thirdparty`, and `bash .\all_linux.get`.   
+ C++ compiler with C++14 support. There are several library dependencies including [`Boost`](https://sourceforge.net/projects/boost/), [`Miracl`](https://github.com/miracl/MIRACL), [`NTL`](http://www.shoup.net/ntl/) with GMP, and [`libOTe`](https://github.com/osu-crypto/libOTe). For `libOTe`, it requires CPU supporting `PCLMUL`, `AES-NI`, and `SSE4.1`. Optional: `nasm` for improved SHA1 performance.   Our code has been tested on both Windows (Microsoft Visual Studio) and Linux. To install the required libraries: 
+  * For building boost, miracl and libOTe, please follow the more instructions at [`libOTe`](https://github.com/osu-crypto/libOTe)
+  * For NTL with GMP, `cd ./thirdparty`, and run `gmp.get` and `ntl.get`.   
 
-NOTE: If you meet problem with `all_win.ps1` or `all_linux.get` which builds boost, miracl and libOTe, please follow the more manual instructions at [`libOTe`](https://github.com/osu-crypto/libOTe). Also, if you meet prolem with NTL, try to do the following: 
+NOTE: if you meet prolem with NTL, try to do the following and read [`Building and using NTL with GM`](https://www.shoup.net/ntl/doc/tour-gmp.html): 
 ###### change ntl code
 
 ```
