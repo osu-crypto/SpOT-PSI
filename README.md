@@ -46,9 +46,9 @@ The database is generated randomly. The outputs include the average online/offli
     -u		unit test which computes PSI of 2 paries, each with set size 2^8 in semi-honest setting
 	-n		log of set size (e.g. n=8 => setsize =2^8)
 	-N		set size
-	-echd	   evaluating DH-based PSI
-	            -c: curve type (0: k283 vs 1: Curve25519)
-	-p          evaluating our protocols (0: `spot-fast` vs 1: `spot-low`)
+	-echd	        evaluating DH-based PSI
+	                 -c: curve type (0: k283 vs 1: Curve25519)
+	-p              evaluating our protocols (0: `spot-fast` vs 1: `spot-low`)
 	-t		number of thread
 	-ip		ip address and port (eg. 172.31.22.179:1212)
 #### Examples: 
