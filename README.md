@@ -10,7 +10,7 @@ Evaluating on a single server (`2 36-cores Intel Xeon CPU E5-2699 v3 @ 2.30GHz a
   * For building boost, miracl and libOTe, please follow the more instructions at [`libOTe`](https://github.com/osu-crypto/libOTe)
   * For NTL with GMP, `cd ./thirdparty`, and run `gmp.get` and `ntl.get`.   
 
-NOTE: if you meet prolem with NTL, try to do the following and read [`Building and using NTL with GM`](https://www.shoup.net/ntl/doc/tour-gmp.html): 
+NOTE: if you meet prolem with NTL, try to do the following and read [`Building and using NTL with GMP`](https://www.shoup.net/ntl/doc/tour-gmp.html): 
 ###### change ntl code
 
 ```
