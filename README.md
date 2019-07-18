@@ -25,7 +25,7 @@ to
    };
 ```
 
-In lip.h, change _ntl_general_rem_one_struct to be a struct.
+In lip.h (line 645), change "class _ntl_general_rem_one_struct" to be "struct _ntl_general_rem_one_struct;".
 
 ### Building the Project
 After cloning project from git,
