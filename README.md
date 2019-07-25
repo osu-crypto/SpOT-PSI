@@ -4,6 +4,10 @@ This is the implementation of our [CRYPTO 2019](http://dl.acm.org/citation.cfm?i
 Evaluating on a single server (`2 36-cores Intel Xeon CPU E5-2699 v3 @ 2.30GHz and 256GB of RAM`) with a single thread per party, each party has `2^20` items, our `spot-low` protocol requires  `270` seconds and `63.1` MB , and our `spot-fast` protocol requires  `25.6` seconds and `76.4` MB. 
 
 ## Installations
+### Clone project
+```
+git clone --recursive git@github.com:osu-crypto/SpOT-PSI.git
+```
 
 ### Required libraries
  C++ compiler with C++14 support. There are several library dependencies including [`Boost`](https://sourceforge.net/projects/boost/), [`Miracl`](https://github.com/miracl/MIRACL), [`NTL`](http://www.shoup.net/ntl/) with GMP, and [`libOTe`](https://github.com/osu-crypto/libOTe). For `libOTe`, it requires CPU supporting `PCLMUL`, `AES-NI`, and `SSE4.1`. Optional: `nasm` for improved SHA1 performance.   Our code has been tested on both Windows (Microsoft Visual Studio) and Linux. To install the required libraries: 
@@ -28,7 +32,7 @@ to
 In lip.h (line 645), change "class _ntl_general_rem_one_struct" to be "struct _ntl_general_rem_one_struct;".
 
 ### Building the Project
-After cloning project from git,
+After cloning project from git, 
 ##### Windows:
 1. build cryptoTools,libOTe, and libOPRF projects in order.
 2. add argument for bOPRFmain project (for example: -u)
