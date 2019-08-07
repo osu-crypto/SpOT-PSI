@@ -73,7 +73,7 @@ include_directories("${GF2X_Dirs}/include/")
 
 # default location for Boost
 set(BOOST_ROOT "${libOTe_Dirs}/cryptoTools/thirdparty/linux/boost/")
-
+include_directories("${BOOST_ROOT}")
 
 #############################################
 #               Build libPSI                 #
