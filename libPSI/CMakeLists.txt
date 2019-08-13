@@ -37,7 +37,7 @@ message(STATUS "NTL  ${NTL_Lib_Dirs}")
 ##############################################
 ##                 Link GMP                  #
 ##############################################
-set(GMP_Lib_Dirs "${GMP_Dirs}src/")
+set(GMP_Lib_Dirs "${GMP_Dirs}lib/")
 set(GMP_Include_Dirs "${GMP_Dirs}include/")
   find_library(
     GMP_LIB 
