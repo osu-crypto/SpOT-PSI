@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -e
+
+echo " =================== Building GMP ==================="
+bash gmp.get  
+
+echo " =================== Building gf2x =================="
+bash gf2x.get
+
+echo " =================== Building NTL =================="
+bash ntl.get
+
+echo " ====================== all done! ====================="
