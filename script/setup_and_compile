@@ -1,0 +1,15 @@
+git clone --recursive git@github.com:osu-crypto/SpOT-PSI.git
+cd SpOT-PSI/
+cd libOTe/cryptoTools/thirdparty/linux/
+bash all.get
+cd 
+cd SpOT-PSI/libOTe/
+cmake .
+make -j
+cd ..
+cd thirdparty/linux/
+bash all.get 
+cd 
+cd SpOT-PSI/
+cmake .
+make -j
