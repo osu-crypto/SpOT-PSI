@@ -13,8 +13,9 @@ git clone --recursive git@github.com:osu-crypto/SpOT-PSI.git
  C++ compiler with C++14 support. There are several library dependencies including [`Boost`](https://sourceforge.net/projects/boost/), [`Miracl`](https://github.com/miracl/MIRACL), [`NTL`](http://www.shoup.net/ntl/) with GMP, and [`libOTe`](https://github.com/osu-crypto/libOTe). For `libOTe`, it requires CPU supporting `PCLMUL`, `AES-NI`, and `SSE4.1`. Optional: `nasm` for improved SHA1 performance.   Our code has been tested on both Windows (Microsoft Visual Studio) and Linux. To install the required libraries: 
   * For building boost, miracl and libOTe, please follow the more instructions at [`libOTe`](https://github.com/osu-crypto/libOTe). A quick try for linux: `cd libOTe/cryptoTools/thirdparty/linux/`, `bash all.get`, `cd` back to `libOTe`, `cmake .` and then `make -j`
   * For NTL with GMP and gf2x, `cd ./thirdparty/linux`, and run `all.get`. Then, you can run `cmake .` in  SpOT-PSI folder, and then `make -j`  
+  * See [`here`](https://github.com/osu-crypto/SpOT-PSI/tree/master/script) for full setup script 
 
-NOTE: if you meet prolem with NTL, try to do the following and read [`Building and using NTL with GMP`](https://www.shoup.net/ntl/doc/tour-gmp.html): 
+NOTE: if you meet problem with NTL, try to do the following and read [`Building and using NTL with GMP`](https://www.shoup.net/ntl/doc/tour-gmp.html): 
 ###### change ntl code
 
 ```
@@ -68,13 +69,13 @@ ECHD
 	
 `spot-fast`
 
-	/bin/frontend.exe -r 1 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
-	& /bin/frontend.exe -r 1 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
+	./bin/frontend.exe -r 1 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
+	& ./bin/frontend.exe -r 1 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
  
 `spot-low`
 
-	/bin/frontend.exe -r 1 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
-	& /bin/frontend.exe -r 1 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
+	./bin/frontend.exe -r 1 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
+	& ./bin/frontend.exe -r 1 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
  
 		
 ## Help
