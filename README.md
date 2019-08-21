@@ -70,12 +70,12 @@ ECHD
 `spot-fast`
 
 	./bin/frontend.exe -r 1 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
-	& ./bin/frontend.exe -r 1 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
+	& ./bin/frontend.exe -r 0 -n 8 -t 1 -p 0 -ip 172.31.77.224:1212
  
 `spot-low`
 
 	./bin/frontend.exe -r 1 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
-	& ./bin/frontend.exe -r 1 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
+	& ./bin/frontend.exe -r 0 -n 8 -t 1 -p 1 -ip 172.31.77.224:1212
  
 		
 ## Help
