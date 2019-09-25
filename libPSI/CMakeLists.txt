@@ -9,7 +9,7 @@ set(NTL_Lib_Dirs "${NTL_Dirs}src/")
 set(NTL_Include_Dirs "${NTL_Dirs}include/")
 
 # default location for NTL
-#set(NTL_LIB "${NTL_Lib_Dirs}nnnnlibntl.a")
+#set(NTL_LIB "${NTL_Lib_Dirs}libntl.a")
 
 
 #if(NOT EXISTS "${NTL_LIB}")
