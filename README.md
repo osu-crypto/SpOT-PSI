@@ -15,7 +15,7 @@ git clone --recursive git@github.com:osu-crypto/SpOT-PSI.git
   * For NTL with GMP and gf2x, `cd ./thirdparty/linux`, and run `all.get`. Then, you can run `cmake .` in  SpOT-PSI folder, and then `make -j`  
   * See [`here`](https://github.com/osu-crypto/SpOT-PSI/blob/master/script/setup_and_compile) for full setup script 
 
-NOTE: if you meet problem with NTL, try to do the following and read [`Building and using NTL with GMP`](https://www.shoup.net/ntl/doc/tour-gmp.html): 
+NOTE: if you meet problem with NTL, try to do the following and read [`Building and using NTL with GMP`](https://www.shoup.net/ntl/doc/tour-gmp.html). If you see an error message `cmd.exe not found`, try to install https://www.nasm.us/
 ###### change ntl code
 
 ```
