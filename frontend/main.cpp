@@ -865,6 +865,16 @@ int main(int argc, char** argv)
 		ipadrr = argv[8];
 	}
 
+	if (argc == 9
+		&& argv[3][0] == '-' && argv[3][1] == 'n'
+		&& argv[5][0] == '-' && argv[5][1] == 't'
+		&& argv[7][0] == '-' && argv[7][1] == 'p')
+	{
+		sendSetSize = 1 << atoi(argv[4]);
+		recvSetSize = sendSetSize;
+		numThreads = atoi(argv[6]);
+		protocolId = atoi(argv[8]);
+	}
 
 		
 	PRNG prng0(_mm_set_epi32(4253465, 3434565, 234435, 23987045));
