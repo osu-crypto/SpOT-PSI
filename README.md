@@ -48,7 +48,7 @@ After cloning project from git,
 ## Running the code
 The database is generated randomly. The outputs include the average online/offline/total runtime that displayed on the screen and output.txt. 
 #### Flags:
-    -u		unit test which computes PSI of 2 paries, each with set size 2^8 in semi-honest setting
+    -t		unit test which computes PSI of 2 paries, each with set size 2^8 in semi-honest setting
 	-n		log of set size (e.g. n=8 => setsize =2^8)
 	-N		set size
 	-echd	        evaluating DH-based PSI
@@ -58,7 +58,7 @@ The database is generated randomly. The outputs include the average online/offli
 	-ip		ip address and port (eg. 172.31.22.179:1212)
 #### Examples: 
 ##### 1. Unit test:
-	./bin/frontend.exe -u
+	./bin/frontend.exe -t
 	
 ##### 2. PSI:
 ECHD
