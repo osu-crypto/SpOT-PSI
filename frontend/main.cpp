@@ -919,6 +919,7 @@ int main(int argc, char** argv)
 
 	if (argv[1][0] == '-' && argv[1][1] == 't') {
 		
+		protocolId=1;
 		std::thread thrd = std::thread([&]() {
 			Sender(sendSet, recvSetSize,"localhost:1212", numThreads);
 		});
