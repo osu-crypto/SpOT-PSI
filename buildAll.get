@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cd libOTe/cryptoTools/thirdparty/linux/
+bash all.get
+cd ../../../
+cmake .  
+make -j
+cd ..
+cd thirdparty/linux/ 
+bash all.get
+cd ../../
+cmake .  
+make -j
